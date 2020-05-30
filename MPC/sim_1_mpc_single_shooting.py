@@ -125,13 +125,14 @@ if __name__ == '__main__':
     c_p = current_parameters(0)
     init_control = optimizing_target(0)
     # print(u0.shape) u0 should have (n_controls, N)
-    while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
+    while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<2 ):
         ## set parameter
         # p_ = np.concatenate((x0, xs))
         c_p['P'] = np.concatenate((x0, xs))
         init_control['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         u0 = ca.reshape(res['x'], n_controls, N)
+        print(u0)
         ff_value = ff(init_control, c_p) # [n_states, N]
         x_c.append(ff_value)
         u_c.append(u0[:, 0])
@@ -142,5 +143,6 @@ if __name__ == '__main__':
         x0 = ca.reshape(x0, -1, 1)
         xx.append(x0)
         mpciter = mpciter + 1
+    print(u_c)
     print(mpciter)
     print(xx)

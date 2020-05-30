@@ -13,11 +13,82 @@ if __name__ == '__main__':
 
     opti = ca.Opti()
     # control variables, linear velocity v and angle velocity omega
-    controls = opti.variable(2, N)
-    v = controls[0, :]
-    omega = controls[1, :]
-    states = opti.variable(3, h)
-    x = states[0, :]
-    y = states[1, :]
-    theta = states[2, :]
-  
+    controls = opti.variable(N, 2)
+    v = controls[:, 0]
+    omega = controls[:, 1]
+    states = opti.variable(N+1, 3)
+    x = states[:, 0]
+    y = states[:, 1]
+    theta = states[:, 2]
+
+    # parameters 
+    x0 = opti.parameter(3)
+    xs = opti.parameter(3)
+    # create model 
+    f = lambda x, u: ca.vertcat(*[u[0]*np.cos(x[2]), u[0]*np.sin(x[2]), u[1]])
+    ## init_condition
+    states[0, :] = x0
+    for i in range(N):
+        x_next = states[i, :] + f(states[i, :], controls[i, :]).T*T
+        opti.subject_to(states[i+1, :]==x_next)
+    
+    for i in range(N):
+        x[i+1] = x[i] + v[i] * np.cos(theta[i]) * T
+        y[i+1] = y[i] + v[i] * np.sin(theta[i]) * T
+        theta[i+1] = theta[i] + omega[i] * T
+
+    ## define predict function
+    ff = ca.Function('ff', [controls, x0], [states])
+
+    ## define the cost function 
+    ### some addition parameters 
+    Q = np.array([[1.0, 0.0, 0.0],[0.0, 5.0, 0.0],[0.0, 0.0, .1]])
+    R = np.array([[0.5, 0.0], [0.0, 0.05]])
+    #### cost function
+    obj = 0 #### cost
+    for i in range(N):
+        obj = obj + ca.mtimes([(states[i, :]-xs.T), Q, (states[i, :]-xs.T).T]) + ca.mtimes([controls[i, :], R, controls[i, :].T])
+    
+    opti.minimize(obj)
+    
+    #### boundrary and control conditions 
+    opti.subject_to(opti.bounded(-2.0, x, 2.0))
+    opti.subject_to(opti.bounded(-2.0, y, 2.0))
+    opti.subject_to(opti.bounded(-v_max, v, v_max))
+    opti.subject_to(opti.bounded(-omega_max, omega, omega_max))
+    # opti.subject_to(-2.0<x)
+    #opti.subject_to(x<2.0)
+    #opti.subject_to(y>-2.0)
+    #opti.subject_to(y<2.0)
+    #opti.subject_to(v<v_max)
+    #opti.subject_to(v>-v_max)
+    #opti.subject_to(omega<omega_max)
+    #opti.subject_to(omega>-omega_max)
+
+    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
+
+    opti.solver('ipopt', opts_setting)
+    final_state = np.array([1.5, 1.5, 0.0])
+    opti.set_value(xs, final_state)
+
+    t0 = 0 
+    init_state = np.array([0.0, 0.0, 0.0])
+    current_state = init_state.copy()
+    x_c = [] # contains for the history of the state
+    u_c = []
+    t_c = [t0] # for the time 
+    xx = []
+    sim_time = 20.0
+
+    ## start MPC
+    mpciter = 0
+    
+    while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<2 ):
+        ## set parameter
+        opti.set_value(x0, current_state)
+        sol = opti.solve()
+        u = sol.value(controls)
+        print(u.shape)
+        ff_value = ff(u, x0)
+        print(ff_value)
+        mpciter = mpciter + 1
