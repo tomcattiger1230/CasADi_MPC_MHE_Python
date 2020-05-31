@@ -1,9 +1,24 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-import casadi as ca 
+import casadi as ca
 import numpy as np
 
+
+def prediction(x0, u, x_r, T, N):
+    # define predition horizon function 
+    states = ca.MX(N+1, 3)
+    states[0, :] = x0
+    x_ = states[:, 0]
+    y_ = states[:, 1]
+    theta_ = state[:, 2]
+    v_ = u[:, 0]
+    omega_ = u[:, 1]
+    for i in range(N):
+        x_[i+1] = x_[i] + v_[i] * np.cos(theta_[i]) * T
+        y_[i+1] = y_[i] + v_[i] * np.sin(theta_[i]) * T
+        theta_[i+1] = theta_[i] + omega_[i] * T
+    return states
 
 if __name__ == '__main__':
     T = 0.2
@@ -31,14 +46,6 @@ if __name__ == '__main__':
     for i in range(N):
         x_next = states[i, :] + f(states[i, :], controls[i, :]).T*T
         opti.subject_to(states[i+1, :]==x_next)
-    
-    for i in range(N):
-        x[i+1] = x[i] + v[i] * np.cos(theta[i]) * T
-        y[i+1] = y[i] + v[i] * np.sin(theta[i]) * T
-        theta[i+1] = theta[i] + omega[i] * T
-
-    ## define predict function
-    ff = ca.Function('ff', [controls, x0], [states])
 
     ## define the cost function 
     ### some addition parameters 
@@ -89,6 +96,4 @@ if __name__ == '__main__':
         sol = opti.solve()
         u = sol.value(controls)
         print(u.shape)
-        ff_value = ff(u, x0)
-        print(ff_value)
         mpciter = mpciter + 1
