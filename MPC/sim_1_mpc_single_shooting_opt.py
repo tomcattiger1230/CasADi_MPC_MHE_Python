@@ -5,20 +5,36 @@ import casadi as ca
 import numpy as np
 
 
-def prediction(x0, u, x_r, T, N):
+def prediction_function(T, N):
     # define predition horizon function 
-    states = ca.MX(N+1, 3)
+    states = ca.MX.sym('state', N+1, 3)
+    x0 = ca.MX.sym('x0', 3)
+    u = ca.MX.sym('u', N, 2)
     states[0, :] = x0
-    x_ = states[:, 0]
-    y_ = states[:, 1]
-    theta_ = states[:, 2]
-    v_ = u[:, 0]
-    omega_ = u[:, 1]
     for i in range(N):
-        x_[i+1] = x_[i] + v_[i] * np.cos(theta_[i]) * T
-        y_[i+1] = y_[i] + v_[i] * np.sin(theta_[i]) * T
-        theta_[i+1] = theta_[i] + omega_[i] * T
-    return states
+        states[i+1, 0] = states[i, 0] + u[i, 0] * np.cos(states[i, 2]) * T
+        states[i+1, 1] = states[i, 1] + u[i, 0] * np.sin(states[i, 2]) * T
+        states[i+1, 2] = states[i, 2] + u[i, 1] * T
+    print(states)
+    print(ca.Function('ff', [x0, u], [states], ['init_s', 'controls_horizon'], ['outputs']))
+
+    return ca.Function('ff', [x0, u], [states])
+
+
+# def prediction(x0, u, T, N):
+#    # define predition horizon function 
+#    states = ca.MX.sym('state', N+1, 3)
+#    states[0, :] = x0
+#    x_ = states[:, 0]
+#    y_ = states[:, 1]
+#    theta_ = states[:, 2]
+#    v_ = u[:, 0]
+#    omega_ = u[:, 1]
+#    for i in range(N):
+#        x_[i+1] = x_[i] + v_[i] * np.cos(theta_[i]) * T
+#        y_[i+1] = y_[i] + v_[i] * np.sin(theta_[i]) * T
+#        theta_[i+1] = theta_[i] + omega_[i] * T
+#    return states
 
 if __name__ == '__main__':
     T = 0.2
@@ -41,6 +57,8 @@ if __name__ == '__main__':
     xs = opti.parameter(3)
     # create model 
     f = lambda x, u: ca.vertcat(*[u[0]*np.cos(x[2]), u[0]*np.sin(x[2]), u[1]])
+    ## prediction function 
+    ff = prediction_function(T, N)
     ## init_condition
     states[0, :] = x0
     for i in range(N):
@@ -95,5 +113,8 @@ if __name__ == '__main__':
         opti.set_value(x0, current_state)
         sol = opti.solve()
         u = sol.value(controls)
-        print(u.shape)
+        print(u)
+        print(type(x0))
+        next_states = ff(ca.DM([0.0, 0.0, 0.0]), u)
+        print(next_states)
         mpciter = mpciter + 1
