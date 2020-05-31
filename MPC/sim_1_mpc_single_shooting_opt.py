@@ -11,7 +11,7 @@ def prediction(x0, u, x_r, T, N):
     states[0, :] = x0
     x_ = states[:, 0]
     y_ = states[:, 1]
-    theta_ = state[:, 2]
+    theta_ = states[:, 2]
     v_ = u[:, 0]
     omega_ = u[:, 1]
     for i in range(N):
