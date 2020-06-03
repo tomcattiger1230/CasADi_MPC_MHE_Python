@@ -4,12 +4,20 @@
 import casadi as ca
 import numpy as np
 
+from draw import Draw_MPC_point_stabilization_v1
 
+def shift_movement(T, t0, x0, u, f):
+    f_value = f_np(x0, u[0])
+    st = x0 + T*f_value
+    t = t0 + T
+    u_end = np.concatenate((u[:, 1:], u[:, -1:]))
+
+    return t, st, u_end
 def prediction_function(T, N):
     # define predition horizon function
-    states = ca.SX.sym('states', N+1, 3)
-    x0 = ca.SX.sym('x0', 3)
-    u = ca.SX.sym('u', N, 2)
+    states = ca.MX.sym('states', N+1, 3)
+    x0 = ca.MX.sym('x0', 3)
+    u = ca.MX.sym('u', N, 2)
     states[0, :] = x0
     for i in range(N):
         states[i+1, 0] = states[i, 0] + u[i, 0] * np.cos(states[i, 2]) * T
@@ -20,20 +28,15 @@ def prediction_function(T, N):
     return func
 
 
-# def prediction(x0, u, T, N):
-#    # define predition horizon function
-#    states = ca.MX.sym('state', N+1, 3)
-#    states[0, :] = x0
-#    x_ = states[:, 0]
-#    y_ = states[:, 1]
-#    theta_ = states[:, 2]
-#    v_ = u[:, 0]
-#    omega_ = u[:, 1]
-#    for i in range(N):
-#        x_[i+1] = x_[i] + v_[i] * np.cos(theta_[i]) * T
-#        y_[i+1] = y_[i] + v_[i] * np.sin(theta_[i]) * T
-#        theta_[i+1] = theta_[i] + omega_[i] * T
-#    return states
+def prediction_state(x0, u, T, N):
+    # define predition horizon function
+    states = np.zeros((N+1, 3))
+    states[0, :] = x0
+    for i in range(N):
+        states[i+1, 0] = states[i, 0] + u[i, 0] * np.cos(states[i, 2]) * T
+        states[i+1, 1] = states[i, 1] + u[i, 0] * np.sin(states[i, 2]) * T
+        states[i+1, 2] = states[i, 2] + u[i, 1] * T
+    return states
 
 if __name__ == '__main__':
     T = 0.2
@@ -56,9 +59,8 @@ if __name__ == '__main__':
     xs = opti.parameter(3)
     # create model
     f = lambda x, u: ca.vertcat(*[u[0]*np.cos(x[2]), u[0]*np.sin(x[2]), u[1]])
-    ## prediction function
-    ff = prediction_function(T, N)
-    print(ff)
+    f_np = lambda x, u: np.array([u[0]*np.cos(x[2]), u[0]*np.sin(x[2]), u[1]])
+
     ## init_condition
     states[0, :] = x0
     for i in range(N):
@@ -81,14 +83,6 @@ if __name__ == '__main__':
     opti.subject_to(opti.bounded(-2.0, y, 2.0))
     opti.subject_to(opti.bounded(-v_max, v, v_max))
     opti.subject_to(opti.bounded(-omega_max, omega, omega_max))
-    # opti.subject_to(-2.0<x)
-    #opti.subject_to(x<2.0)
-    #opti.subject_to(y>-2.0)
-    #opti.subject_to(y<2.0)
-    #opti.subject_to(v<v_max)
-    #opti.subject_to(v>-v_max)
-    #opti.subject_to(omega<omega_max)
-    #opti.subject_to(omega>-omega_max)
 
     opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
@@ -108,11 +102,23 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
 
-    while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<2 ):
-        ## set parameter
+    while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0  ):
+        ## set parameter, here only update initial state of x (x0)
         opti.set_value(x0, current_state)
+        ## solve the problem once again
         sol = opti.solve()
+        ## obtain the control input
         u = sol.value(controls)
-        next_states = ff(ca.DM([0.0, 0.0, 0.0]), u)
-        print(next_states)
+        u_c.append(u[0, :])
+        t_c.append(t0)
+        next_states = prediction_state(x0=current_state, u=u, N=N, T=T)
+        x_c.append(next_states)
+        t0, current_state, u0 = shift_movement(T, t0, current_state, u, f)
         mpciter = mpciter + 1
+        xx.append(current_state)
+
+    ## after loop
+    print(mpciter)
+    print('final error {}'.format(np.linalg.norm(final_state-current_state)))
+    ## draw function
+    Draw_MPC_point_stabilization_v1(rob_diam=0.3, target_state=final_state,robot_states=xx)
