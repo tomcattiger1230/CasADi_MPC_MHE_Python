@@ -6,23 +6,22 @@ import numpy as np
 
 
 def prediction_function(T, N):
-    # define predition horizon function 
-    states = ca.MX.sym('state', N+1, 3)
-    x0 = ca.MX.sym('x0', 3)
-    u = ca.MX.sym('u', N, 2)
+    # define predition horizon function
+    states = ca.SX.sym('states', N+1, 3)
+    x0 = ca.SX.sym('x0', 3)
+    u = ca.SX.sym('u', N, 2)
     states[0, :] = x0
     for i in range(N):
         states[i+1, 0] = states[i, 0] + u[i, 0] * np.cos(states[i, 2]) * T
         states[i+1, 1] = states[i, 1] + u[i, 0] * np.sin(states[i, 2]) * T
         states[i+1, 2] = states[i, 2] + u[i, 1] * T
-    print(states)
-    print(ca.Function('ff', [x0, u], [states], ['init_s', 'controls_horizon'], ['outputs']))
+    func = ca.Function('ff', [x0, u], [states], ['init_s', 'controls_horizon'], ['outputs'])
 
-    return ca.Function('ff', [x0, u], [states])
+    return func
 
 
 # def prediction(x0, u, T, N):
-#    # define predition horizon function 
+#    # define predition horizon function
 #    states = ca.MX.sym('state', N+1, 3)
 #    states[0, :] = x0
 #    x_ = states[:, 0]
@@ -52,31 +51,32 @@ if __name__ == '__main__':
     y = states[:, 1]
     theta = states[:, 2]
 
-    # parameters 
+    # parameters
     x0 = opti.parameter(3)
     xs = opti.parameter(3)
-    # create model 
+    # create model
     f = lambda x, u: ca.vertcat(*[u[0]*np.cos(x[2]), u[0]*np.sin(x[2]), u[1]])
-    ## prediction function 
+    ## prediction function
     ff = prediction_function(T, N)
+    print(ff)
     ## init_condition
     states[0, :] = x0
     for i in range(N):
         x_next = states[i, :] + f(states[i, :], controls[i, :]).T*T
         opti.subject_to(states[i+1, :]==x_next)
 
-    ## define the cost function 
-    ### some addition parameters 
+    ## define the cost function
+    ### some addition parameters
     Q = np.array([[1.0, 0.0, 0.0],[0.0, 5.0, 0.0],[0.0, 0.0, .1]])
     R = np.array([[0.5, 0.0], [0.0, 0.05]])
     #### cost function
     obj = 0 #### cost
     for i in range(N):
         obj = obj + ca.mtimes([(states[i, :]-xs.T), Q, (states[i, :]-xs.T).T]) + ca.mtimes([controls[i, :], R, controls[i, :].T])
-    
+
     opti.minimize(obj)
-    
-    #### boundrary and control conditions 
+
+    #### boundrary and control conditions
     opti.subject_to(opti.bounded(-2.0, x, 2.0))
     opti.subject_to(opti.bounded(-2.0, y, 2.0))
     opti.subject_to(opti.bounded(-v_max, v, v_max))
@@ -96,25 +96,23 @@ if __name__ == '__main__':
     final_state = np.array([1.5, 1.5, 0.0])
     opti.set_value(xs, final_state)
 
-    t0 = 0 
+    t0 = 0
     init_state = np.array([0.0, 0.0, 0.0])
     current_state = init_state.copy()
     x_c = [] # contains for the history of the state
     u_c = []
-    t_c = [t0] # for the time 
+    t_c = [t0] # for the time
     xx = []
     sim_time = 20.0
 
     ## start MPC
     mpciter = 0
-    
+
     while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<2 ):
         ## set parameter
         opti.set_value(x0, current_state)
         sol = opti.solve()
         u = sol.value(controls)
-        print(u)
-        print(type(x0))
         next_states = ff(ca.DM([0.0, 0.0, 0.0]), u)
         print(next_states)
         mpciter = mpciter + 1
