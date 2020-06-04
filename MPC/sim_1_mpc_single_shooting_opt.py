@@ -121,4 +121,4 @@ if __name__ == '__main__':
     print(mpciter)
     print('final error {}'.format(np.linalg.norm(final_state-current_state)))
     ## draw function
-    Draw_MPC_point_stabilization_v1(rob_diam=0.3, target_state=final_state,robot_states=xx)
+    draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=init_state, target_state=final_state,robot_states=xx)

@@ -46,9 +46,6 @@ if __name__ == '__main__':
     rhs['x'] = v*np.cos(theta)
     rhs['y'] = v*np.sin(theta)
     rhs['theta'] = omega
-    # rhs = v*np.cos(theta)
-    # rhs = ca.vertcat(rhs, v*np.sin(theta))
-    # rhs = ca.vertcat(rhs, omega)
 
     ## function
     f = ca.Function('f', [states, controls], [rhs], ['input_state', 'control_input'], ['rhs'])
