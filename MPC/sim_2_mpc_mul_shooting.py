@@ -11,7 +11,7 @@ def shift_movement(T, t0, x0, u, f):
     f_value = f(x0, u[:, 0])
     st = x0 + T*f_value
     t = t0 + T
-    u_end = ca.horzcat(u[:, 1:], u[:, -1:])
+    u_end = ca.horzcat(u[:, 1], u[:, :-1])
 
     return t, st, u_end
 
@@ -141,14 +141,19 @@ if __name__ == '__main__':
         ## set parameter
         # p_ = np.concatenate((x0, xs))
         c_p['P'] = np.concatenate((x0, xs))
-        init_control['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]
         init_control['X', lambda x:ca.horzcat(*x)] = ff_value 
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         # print(res['x'].shape) [n_controls*N + (N+1)*n_states, 1]
-        estimated_opt = res['x'].full()
-        u0 = estimated_opt[:n_controls*N].reshape(n_controls, N)
-        ff_value = estimated_opt[n_controls*N:].reshape(n_states, N+1)
+        estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
+        ff_last_ = estimated_opt[-3:]
+        temp_estimated = estimated_opt[:-3].reshape(-1, 5)
+        u0 = temp_estimated[:, :2].T
+        ff_value = temp_estimated[:, 2:].T
+        ff_value = np.concatenate((ff_value, estimated_opt[-3:].reshape(3, 1)), axis=1) # add the last estimated result now is n_states * (N+1)
+        # u0 = estimated_opt[:n_controls*N].reshape(N, n_controls)
+        # ff_value = estimated_opt[n_controls*N:].reshape(N+1, n_states)
         # ff_value = ca.reshape(res[x]) # [n_states, N]
+        print(ff_value[:, -2:])
         x_c.append(ff_value)
         u_c.append(u0[:, 0])
         t_c.append(t0)
