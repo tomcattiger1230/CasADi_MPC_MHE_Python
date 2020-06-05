@@ -67,17 +67,10 @@ if __name__ == '__main__':
         )
     ])
     P, = current_parameters[...]
-    #P = ca.SX.sym('P', n_states+n_states) # initial pose and final pose
 
     ### define
     X[0] = P[:3] # initial condiction
 
-    #### define the relationship within the horizon
-    # for i in range(N):
-    #     f_value = f(X[:, i], U[i])
-    #     X[:, i+1] = X[:, i] + f_value*T
-
-    # ff = ca.Function('ff', [optimizing_target, current_parameters], [X], ['input_U', 'target_state'], ['horizon_states'])
 
     Q = np.array([[1.0, 0.0, 0.0],[0.0, 5.0, 0.0],[0.0, 0.0, .1]])
     R = np.array([[0.5, 0.0], [0.0, 0.05]])
@@ -103,21 +96,25 @@ if __name__ == '__main__':
     lbx = []
     ubx = []
 
-    ## add constraints to control unit
+    ## add constraints to control and statesn notice that for the N+1 th state
     for _ in range(N):
         lbx.append(-v_max)
         lbx.append(-omega_max)
         ubx.append(v_max)
         ubx.append(omega_max)
-
-    ## add constraints to states
-    for _ in range(N+1):
         lbx.append(-2.0)
         lbx.append(-2.0)
         lbx.append(-np.inf)
         ubx.append(2.0)
         ubx.append(2.0)
         ubx.append(np.inf)
+    # for the N+1 state
+    lbx.append(-2.0)
+    lbx.append(-2.0)
+    lbx.append(-np.inf)
+    ubx.append(2.0)
+    ubx.append(2.0)
+    ubx.append(np.inf)
 
     # Simulation
     t0 = 0.0
@@ -139,30 +136,21 @@ if __name__ == '__main__':
     # print(u0.shape) u0 should have (n_controls, N)
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
-        # p_ = np.concatenate((x0, xs))
         c_p['P'] = np.concatenate((x0, xs))
         init_control['X', lambda x:ca.horzcat(*x)] = ff_value 
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
-        # print(res['x'].shape) [n_controls*N + (N+1)*n_states, 1]
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
         ff_last_ = estimated_opt[-3:]
         temp_estimated = estimated_opt[:-3].reshape(-1, 5)
         u0 = temp_estimated[:, :2].T
         ff_value = temp_estimated[:, 2:].T
         ff_value = np.concatenate((ff_value, estimated_opt[-3:].reshape(3, 1)), axis=1) # add the last estimated result now is n_states * (N+1)
-        # u0 = estimated_opt[:n_controls*N].reshape(N, n_controls)
-        # ff_value = estimated_opt[n_controls*N:].reshape(N+1, n_states)
-        # ff_value = ca.reshape(res[x]) # [n_states, N]
-        print(ff_value[:, -2:])
         x_c.append(ff_value)
         u_c.append(u0[:, 0])
         t_c.append(t0)
         t0, x0, u0 = shift_movement(T, t0, x0, u0, f)
-        # x0 = x0.toarray().reshape(-1, 1)
-        # u0 = np.array([1,2]*N).reshape(-1, 2).T# np.ones((N, 2)) # controls
         x0 = ca.reshape(x0, -1, 1)
         xx.append(x0.full())
         mpciter = mpciter + 1
-    # print(type(x0.full()))
 
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx )
