@@ -96,6 +96,7 @@ if __name__ == '__main__':
         sol = opti.solve()
         ## obtain the control input
         u = sol.value(controls)
+        print(sol.value(states))
         u_c.append(u[0, :])
         t_c.append(t0)
         next_states = prediction_state(x0=current_state, u=u, N=N, T=T)
