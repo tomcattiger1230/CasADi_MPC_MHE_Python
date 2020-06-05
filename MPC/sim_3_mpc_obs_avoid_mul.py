@@ -5,7 +5,7 @@ import casadi as ca
 import casadi.tools as ca_tools
 
 import numpy as np
-from draw import Draw_MPC_point_stabilization_v1
+from draw import Draw_MPC_Obstacle
 
 def shift_movement(T, t0, x0, u, f):
     f_value = f(x0, u[:, 0])
@@ -78,12 +78,20 @@ if __name__ == '__main__':
     obj = 0 #### cost
     #### constrains
     g = [] # equal constrains
+    lbg = []
+    ubg = []
     g.append(X[0]-P[:3]) # initial condition constraints 
     for i in range(N):
         obj = obj + ca.mtimes([(X[i]-P[3:]).T, Q, X[i]-P[3:]]) + ca.mtimes([U[i].T, R, U[i]])
         x_next_ = f(X[i], U[i])*T + X[i]
         g.append(X[i+1] - x_next_)
-
+    #### obstacle definition
+    obs_x = 0.5
+    obs_y = 0.5
+    obs_diam = 0.3
+    ##### add constraints to obstacle distance
+    for i in range(N+1):
+        g.append(np.sqrt((X[i][0]-obs_x)**2+(X[i][1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.))
 
 
     nlp_prob = {'f': obj, 'x': optimizing_target, 'p':current_parameters, 'g':ca.vertcat(*g)}
@@ -91,12 +99,22 @@ if __name__ == '__main__':
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
-    lbg = 0.0
-    ubg = 0.0
     lbx = []
     ubx = []
 
-    ## add constraints to control and statesn notice that for the N+1 th state
+    ## add constraints for equations
+    for _ in range(N+1):
+        lbg.append(0.0)
+        ubg.append(0.0)
+        lbg.append(0.0)
+        ubg.append(0.0)
+        lbg.append(0.0)
+        ubg.append(0.0)
+    for _ in range(N+1):
+        lbg.append(-0.01)
+        ubg.append(np.inf)
+
+    ## add constraints to control and states notice that for the N+1 th state
     for _ in range(N):
         lbx.append(-v_max)
         lbx.append(-omega_max)
@@ -138,7 +156,7 @@ if __name__ == '__main__':
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         c_p['P'] = np.concatenate((x0, xs))
-        init_control['X', lambda x:ca.horzcat(*x)] = ff_value 
+        init_control['X', lambda x:ca.horzcat(*x)] = ff_value[:, 0:N+1] 
         init_control['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
@@ -147,6 +165,7 @@ if __name__ == '__main__':
         u0 = temp_estimated[:, :2].T
         ff_value = temp_estimated[:, 2:].T
         ff_value = np.concatenate((ff_value, estimated_opt[-3:].reshape(3, 1)), axis=1) # add the last estimated result now is n_states * (N+1)
+        print(u0.T)
         x_c.append(ff_value)
         u_c.append(u0[:, 0])
         t_c.append(t0)
@@ -155,4 +174,4 @@ if __name__ == '__main__':
         xx.append(x0.full())
         mpciter = mpciter + 1
 
-    draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx )
+    draw_result = Draw_MPC_Obstacle(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx, obstacle=np.array([obs_x, obs_y, obs_diam/2.]), export_fig=True)
