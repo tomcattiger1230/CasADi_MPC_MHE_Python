@@ -69,9 +69,6 @@ if __name__ == '__main__':
     P, = current_parameters[...]
 
     ### define
-    X[0] = P[:3] # initial condiction
-
-
     Q = np.array([[1.0, 0.0, 0.0],[0.0, 5.0, 0.0],[0.0, 0.0, .1]])
     R = np.array([[0.5, 0.0], [0.0, 0.05]])
     #### cost function
@@ -147,6 +144,7 @@ if __name__ == '__main__':
         u0 = temp_estimated[:, :2].T
         ff_value = temp_estimated[:, 2:].T
         ff_value = np.concatenate((ff_value, estimated_opt[-3:].reshape(3, 1)), axis=1) # add the last estimated result now is n_states * (N+1)
+        print(ff_value.T)
         x_c.append(ff_value)
         u_c.append(u0[:, 0])
         t_c.append(t0)
