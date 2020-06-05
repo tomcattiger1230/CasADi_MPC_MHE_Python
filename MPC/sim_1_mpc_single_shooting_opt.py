@@ -7,7 +7,7 @@ import numpy as np
 from draw import Draw_MPC_point_stabilization_v1
 
 def shift_movement(T, t0, x0, u, f):
-    f_value = f_np(x0, u[0])
+    f_value = f(x0, u[0])
     st = x0 + T*f_value
     t = t0 + T
     u_end = np.concatenate((u[:, 1:], u[:, -1:]))
@@ -113,7 +113,7 @@ if __name__ == '__main__':
         t_c.append(t0)
         next_states = prediction_state(x0=current_state, u=u, N=N, T=T)
         x_c.append(next_states)
-        t0, current_state, u0 = shift_movement(T, t0, current_state, u, f)
+        t0, current_state, u0 = shift_movement(T, t0, current_state, u, f_np)
         mpciter = mpciter + 1
         xx.append(current_state)
 
