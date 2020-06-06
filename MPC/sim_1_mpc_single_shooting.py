@@ -11,7 +11,7 @@ def shift_movement(T, t0, x0, u, f):
     f_value = f(x0, u[:, 0])
     st = x0 + T*f_value
     t = t0 + T
-    u_end = ca.horzcat(u[:, 1:], u[:, -1:])
+    u_end = ca.horzcat(u[:, 1:], u[:, -1])
 
     return t, st, u_end
 

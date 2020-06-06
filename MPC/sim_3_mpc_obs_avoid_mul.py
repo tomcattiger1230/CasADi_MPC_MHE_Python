@@ -7,19 +7,25 @@ import casadi.tools as ca_tools
 import numpy as np
 from draw import Draw_MPC_Obstacle
 
-def shift_movement(T, t0, x0, u, f):
-    print('u0:{}'.format(u[:, 0]))
-    f_value = f(x0, u[:, 0])
+def shift_movement(T, t0, x0, u_, f):
+    print('u come {}'.format(u_))
+    u_temp = u_.T
+    f_value = f(x0, u_[:, 0])
+    print('u0:{}\n'.format(u_[:, 0]))
     print('{0}, {1}'.format(t0, f_value))
     st = x0 + T*f_value
     t = t0 + T
-    u_end = ca.horzcat(u[:, 1], u[:, :-1])
-    print('{0}, uend {1}'.format(t0, u_end))
+    print('last x0 {}'.format(x0))
+    print('new st{}'.format(st))
+    #print('u all {}'.format(u_.T))
+    #print('u1 rest{}'.format(u_[:, 1:].T))
+    u_end = ca.horzcat(u_[:, 1:], u_[:, -1])
+    print('{0}, uend {1}'.format(t0, u_end.T))
     return t, st, u_end
 
 if __name__ == '__main__':
     T = 0.2 # sampling time [s]
-    N = 100 # prediction horizon
+    N = 20 # prediction horizon
     rob_diam = 0.3 # [m]
     v_max = 0.6
     omega_max = np.pi/4.0
@@ -92,7 +98,7 @@ if __name__ == '__main__':
 
 
     nlp_prob = {'f': obj, 'x': optimizing_target, 'p':current_parameters, 'g':ca.vertcat(*g)}
-    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
+    opts_setting = {'ipopt.max_iter':2000, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
@@ -150,7 +156,7 @@ if __name__ == '__main__':
     c_p = current_parameters(0)
     init_control = optimizing_target(0)
     # print(u0.shape) u0 should have (n_controls, N)
-    while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<10):
+    while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<40):
         ## set parameter
         # print('x0 {}'.format(x0))
         c_p['P'] = np.concatenate((x0, xs))
@@ -171,6 +177,7 @@ if __name__ == '__main__':
         t_c.append(t0)
         t0, x0, u0 = shift_movement(T, t0, x0, u0, f)
         x0 = ca.reshape(x0, -1, 1)
+        print('x0 {}'.format(x0))
         xx.append(x0.full())
         mpciter = mpciter + 1
 

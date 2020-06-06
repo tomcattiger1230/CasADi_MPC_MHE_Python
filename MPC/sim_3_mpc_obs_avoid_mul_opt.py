@@ -4,7 +4,7 @@
 import casadi as ca
 import numpy as np
 
-from draw import Draw_MPC_point_stabilization_v1
+from draw import Draw_MPC_Obstacle
 
 def shift_movement(T, t0, x0, u, f):
     f_value = f(x0, u[0])
@@ -26,7 +26,8 @@ def prediction_state(x0, u, T, N):
 
 if __name__ == '__main__':
     T = 0.2
-    N = 100
+    N = 20
+    rob_diam = 0.3 # [m]
     v_max = 0.6
     omega_max = np.pi/4.0
 
@@ -52,7 +53,15 @@ if __name__ == '__main__':
     for i in range(N):
         x_next = states[i, :] + f(states[i, :], controls[i, :]).T*T
         opti.subject_to(states[i+1, :]==x_next)
-
+    #### obstacle definition
+    obs_x = 0.5
+    obs_y = 0.5
+    obs_diam = 0.3
+    ##### add constraints to obstacle distance
+    for i in range(N+1):
+        opti.subject_to(np.sqrt((states[i, 0]-obs_x)**2+(states[i, 1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.)>=0.0)
+        
+        # g.append(np.sqrt((X[i][0]-obs_x)**2+(X[i][1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.))
     ## define the cost function
     ### some addition parameters
     Q = np.array([[1.0, 0.0, 0.0],[0.0, 5.0, 0.0],[0.0, 0.0, .1]])
@@ -67,7 +76,7 @@ if __name__ == '__main__':
     #### boundrary and control conditions
     opti.subject_to(opti.bounded(-2.0, x, 2.0))
     opti.subject_to(opti.bounded(-2.0, y, 2.0))
-    opti.subject_to(opti.bounded(-np.inf, theta, np.inf))
+    opti.subject_to(opti.bounded(-np.pi, theta, np.pi))
     opti.subject_to(opti.bounded(-v_max, v, v_max))
     opti.subject_to(opti.bounded(-omega_max, omega, omega_max))
 
@@ -89,14 +98,16 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
 
-    while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0  ):
+    while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<150 ):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(x0, current_state)
+        print(current_state)
         ## solve the problem once again
         sol = opti.solve()
         ## obtain the control input
         u = sol.value(controls)
-        print(sol.value(states))
+        print('u {}'.format(u))
+        print("state {0} at {1}".format(sol.value(states), mpciter))
         u_c.append(u[0, :])
         t_c.append(t0)
         next_states = prediction_state(x0=current_state, u=u, N=N, T=T)
@@ -109,4 +120,4 @@ if __name__ == '__main__':
     print(mpciter)
     print('final error {}'.format(np.linalg.norm(final_state-current_state)))
     ## draw function
-    draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=init_state, target_state=final_state,robot_states=xx)
+    draw_result = Draw_MPC_Obstacle(rob_diam=0.3, init_state=init_state, target_state=final_state, robot_states=xx, obstacle=np.array([obs_x, obs_y, obs_diam/2.]), export_fig=False)

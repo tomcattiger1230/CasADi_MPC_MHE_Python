@@ -11,7 +11,7 @@ def shift_movement(T, t0, x0, u, f):
     f_value = f(x0, u[:, 0])
     st = x0 + T*f_value
     t = t0 + T
-    u_end = ca.horzcat(u[:, 1], u[:, :-1])
+    u_end = ca.horzcat(u[:, 1:], u[:, -1])
 
     return t, st, u_end
 
@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
 
     nlp_prob = {'f': obj, 'x': optimizing_target, 'p':current_parameters, 'g':ca.vertcat(*g)}
-    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
+    opts_setting = {'ipopt.max_iter':200, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
