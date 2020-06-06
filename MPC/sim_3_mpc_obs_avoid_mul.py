@@ -83,7 +83,7 @@ if __name__ == '__main__':
     g = [] # equal constrains
     lbg = []
     ubg = []
-    g.append(X[0]-P[:3]) # initial condition constraints 
+    g.append(X[0]-P[:3]) # initial condition constraints
     for i in range(N):
         obj = obj + ca.mtimes([(X[i]-P[3:]).T, Q, X[i]-P[3:]]) + ca.mtimes([U[i].T, R, U[i]])
         x_next_ = f(X[i], U[i])*T + X[i]
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     obs_diam = 0.3
     ##### add constraints to obstacle distance
     for i in range(N+1):
-        g.append(np.sqrt((X[i][0]-obs_x)**2+(X[i][1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.))
+        g.append(ca.sqrt((X[i][0]-obs_x)**2+(X[i][1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.))
 
 
     nlp_prob = {'f': obj, 'x': optimizing_target, 'p':current_parameters, 'g':ca.vertcat(*g)}
@@ -114,7 +114,7 @@ if __name__ == '__main__':
         lbg.append(0.0)
         ubg.append(0.0)
     for _ in range(N+1):
-        lbg.append(-0.01)
+        lbg.append(0.21)
         ubg.append(np.inf)
 
     ## add constraints to control and states notice that for the N+1 th state
@@ -156,11 +156,11 @@ if __name__ == '__main__':
     c_p = current_parameters(0)
     init_control = optimizing_target(0)
     # print(u0.shape) u0 should have (n_controls, N)
-    while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<40):
+    while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         # print('x0 {}'.format(x0))
         c_p['P'] = np.concatenate((x0, xs))
-        init_control['X', lambda x:ca.horzcat(*x)] = ff_value[:, 0:N+1] 
+        init_control['X', lambda x:ca.horzcat(*x)] = ff_value[:, 0:N+1]
         init_control['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]
         # print("run {0}\n {1}".format(mpciter, u0.T))
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
@@ -177,7 +177,7 @@ if __name__ == '__main__':
         t_c.append(t0)
         t0, x0, u0 = shift_movement(T, t0, x0, u0, f)
         x0 = ca.reshape(x0, -1, 1)
-        print('x0 {}'.format(x0))
+        #print('x0 {}'.format(x0))
         xx.append(x0.full())
         mpciter = mpciter + 1
 

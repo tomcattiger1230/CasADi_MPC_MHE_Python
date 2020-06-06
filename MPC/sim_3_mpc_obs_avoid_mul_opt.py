@@ -59,8 +59,8 @@ if __name__ == '__main__':
     obs_diam = 0.3
     ##### add constraints to obstacle distance
     for i in range(N+1):
-        opti.subject_to(np.sqrt((states[i, 0]-obs_x)**2+(states[i, 1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.)>=0.0)
-        
+        opti.subject_to(ca.sqrt((states[i, 0]-obs_x)**2+(states[i, 1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.)>=0.0)
+
         # g.append(np.sqrt((X[i][0]-obs_x)**2+(X[i][1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.))
     ## define the cost function
     ### some addition parameters
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
 
-    while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<150 ):
+    while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(x0, current_state)
         print(current_state)

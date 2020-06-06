@@ -61,6 +61,13 @@ if __name__ == '__main__':
         x_next_ = f(X[:, i], U[:, i])*T +X[:, i]
         g.append(X[:, i+1]-x_next_)
 
+    #### constraints
+    obs_x = 0.5
+    obs_y = 0.5
+    obs_diam = 0.3
+    for i in range(N+1):
+        g.append((rob_diam/2.0+obs_diam/2.0)-np.sqrt((X[0, i]-obs_x)**2+(X[1, i]-obs_y)**2))
+
     opt_variables = ca.vertcat( ca.reshape(U, -1, 1), ca.reshape(X, -1, 1))
 
     nlp_prob = {'f': obj, 'x': opt_variables, 'p':P, 'g':ca.vertcat(*g)}
@@ -68,10 +75,21 @@ if __name__ == '__main__':
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
-    lbg = 0.0
-    ubg = 0.0
+    lbg = []
+    ubg = []
     lbx = []
     ubx = []
+    for _ in range(N+1):
+        lbg.append(0.0)
+        lbg.append(0.0)
+        lbg.append(0.0)
+        ubg.append(0.0)
+        ubg.append(0.0)
+        ubg.append(0.0)
+    for _ in range(N+1):
+        lbg.append(-np.inf)
+        ubg.append(0.0)
+
     for _ in range(N):
         lbx.append(-v_max)
         lbx.append(-omega_max)
@@ -117,5 +135,5 @@ if __name__ == '__main__':
         x0 = x0.full()
         xx.append(x0)
         mpciter = mpciter + 1
-
+    print(mpciter)
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx )
