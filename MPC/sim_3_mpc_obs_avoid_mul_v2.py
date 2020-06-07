@@ -5,14 +5,14 @@ import casadi as ca
 import casadi.tools as ca_tools
 
 import numpy as np
-from draw import Draw_MPC_point_stabilization_v1
+from draw import Draw_MPC_Obstacle
 
 def shift_movement(T, t0, x0, u, f):
     f_value = f(x0, u[:, 0])
     st = x0 + T*f_value.full()
     t = t0 + T
     u_end = np.concatenate((u[:, 1:], u[:, -1:]), axis=1)
-
+    print(u_end.T)
     return t, st, u_end
 
 if __name__ == '__main__':
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     obs_y = 0.5
     obs_diam = 0.3
     for i in range(N+1):
-        g.append((rob_diam/2.0+obs_diam/2.0)-np.sqrt((X[0, i]-obs_x)**2+(X[1, i]-obs_y)**2))
+        g.append((rob_diam/2.0+obs_diam/2.0)-ca.sqrt((X[0, i]-obs_x)**2+(X[1, i]-obs_y)**2))
 
     opt_variables = ca.vertcat( ca.reshape(U, -1, 1), ca.reshape(X, -1, 1))
 
@@ -136,4 +136,4 @@ if __name__ == '__main__':
         xx.append(x0)
         mpciter = mpciter + 1
     print(mpciter)
-    draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx )
+    draw_result = Draw_MPC_Obstacle(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx, obstacle=np.array([obs_x, obs_y, obs_diam/2.]), export_fig=False)

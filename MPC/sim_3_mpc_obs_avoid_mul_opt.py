@@ -26,7 +26,7 @@ def prediction_state(x0, u, T, N):
 
 if __name__ == '__main__':
     T = 0.2
-    N = 20
+    N = 100
     rob_diam = 0.3 # [m]
     v_max = 0.6
     omega_max = np.pi/4.0
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     obs_diam = 0.3
     ##### add constraints to obstacle distance
     for i in range(N+1):
-        opti.subject_to(ca.sqrt((states[i, 0]-obs_x)**2+(states[i, 1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.)>=0.0)
+        opti.subject_to(ca.sqrt((states[i, 0]-obs_x)**2+(states[i, 1]-obs_y)**2)-rob_diam/2.0-obs_diam/2.0>0.0)
 
         # g.append(np.sqrt((X[i][0]-obs_x)**2+(X[i][1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.))
     ## define the cost function
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     opti.subject_to(opti.bounded(-v_max, v, v_max))
     opti.subject_to(opti.bounded(-omega_max, omega, omega_max))
 
-    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
+    opts_setting = {'ipopt.max_iter':1000, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
     opti.solver('ipopt', opts_setting)
     final_state = np.array([1.5, 1.5, 0.0])
@@ -101,17 +101,18 @@ if __name__ == '__main__':
     while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(x0, current_state)
-        print(current_state)
+        # print(current_state)
         ## solve the problem once again
         sol = opti.solve()
         ## obtain the control input
         u = sol.value(controls)
-        print('u {}'.format(u))
-        print("state {0} at {1}".format(sol.value(states), mpciter))
+        x_m = sol.value(states)
+        # print('u {}'.format(u[0, :]))
+        # print("state {0} at {1}".format(sol.value(states), mpciter))
         u_c.append(u[0, :])
         t_c.append(t0)
-        next_states = prediction_state(x0=current_state, u=u, N=N, T=T)
-        x_c.append(next_states)
+        # next_states = prediction_state(x0=current_state, u=u, N=N, T=T)
+        x_c.append(x_m)
         t0, current_state, u0 = shift_movement(T, t0, current_state, u, f_np)
         mpciter = mpciter + 1
         xx.append(current_state)
