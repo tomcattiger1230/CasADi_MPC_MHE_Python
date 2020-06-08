@@ -8,15 +8,15 @@ import numpy as np
 from draw import Draw_MPC_Obstacle
 
 def shift_movement(T, t0, x0, u_, f):
-    print('u come {}'.format(u_))
-    u_temp = u_.T
+    # print('u come {}'.format(u_))
+    #  u_temp = u_.T
     f_value = f(x0, u_[:, 0])
-    print('u0:{}\n'.format(u_[:, 0]))
-    print('{0}, {1}'.format(t0, f_value))
+    # print('u0:{}\n'.format(u_[:, 0]))
+    # print('{0}, {1}'.format(t0, f_value))
     st = x0 + T*f_value
     t = t0 + T
-    print('last x0 {}'.format(x0))
-    print('new st{}'.format(st))
+    # print('last x0 {}'.format(x0))
+    # print('new st{}'.format(st))
     #print('u all {}'.format(u_.T))
     #print('u1 rest{}'.format(u_[:, 1:].T))
     u_end = ca.horzcat(u_[:, 1:], u_[:, -1])
@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
 
     nlp_prob = {'f': obj, 'x': optimizing_target, 'p':current_parameters, 'g':ca.vertcat(*g)}
-    opts_setting = {'ipopt.max_iter':2000, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
+    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
@@ -114,7 +114,7 @@ if __name__ == '__main__':
         lbg.append(0.0)
         ubg.append(0.0)
     for _ in range(N+1):
-        lbg.append(0.21)
+        lbg.append(0.18)
         ubg.append(np.inf)
 
     ## add constraints to control and states notice that for the N+1 th state
@@ -160,8 +160,8 @@ if __name__ == '__main__':
         ## set parameter
         # print('x0 {}'.format(x0))
         c_p['P'] = np.concatenate((x0, xs))
-        init_control['X', lambda x:ca.horzcat(*x)] = ff_value[:, 0:N+1]
-        init_control['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]
+        init_control['X', lambda x:ca.horzcat(*x)] = ff_value # [:, 0:N+1]
+        init_control['U', lambda x:ca.horzcat(*x)] = u0 # [:, 0:N]
         # print("run {0}\n {1}".format(mpciter, u0.T))
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
@@ -178,7 +178,8 @@ if __name__ == '__main__':
         t0, x0, u0 = shift_movement(T, t0, x0, u0, f)
         x0 = ca.reshape(x0, -1, 1)
         #print('x0 {}'.format(x0))
-        xx.append(x0.full())
+        x0 = x0.full()
+        xx.append(x0)
         mpciter = mpciter + 1
 
     print(mpciter)
