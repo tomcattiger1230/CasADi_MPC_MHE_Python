@@ -79,7 +79,9 @@ if __name__ == '__main__':
 
     t0 = 0
     init_state = np.array([0.0, 0.0, 0.0])
+    u0 = np.zeros((N, 2))
     current_state = init_state.copy()
+    next_states = np.zeros((N+1, 3))
     x_c = [] # contains for the history of the state
     u_c = []
     t_c = [t0] # for the time
@@ -92,11 +94,15 @@ if __name__ == '__main__':
     while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0  ):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(x0, current_state)
+        ## set optimizing target withe init guess
+        print(u0.reshape(N, 2))
+        opti.set_initial(controls, u0.reshape(N, 2))# (N, 2)
+        opti.set_initial(states, next_states) # (N+1, 3)
         ## solve the problem once again
-        sol = opti.solve()
+        sol = opti.solve() 
         ## obtain the control input
         u = sol.value(controls)
-        print(sol.value(states))
+        # print(sol.value(states))
         u_c.append(u[0, :])
         t_c.append(t0)
         next_states = prediction_state(x0=current_state, u=u, N=N, T=T)

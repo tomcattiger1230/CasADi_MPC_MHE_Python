@@ -62,9 +62,9 @@ if __name__ == '__main__':
         g.append(X[:, i+1]-x_next_)
 
     #### constraints
-    obs_x = 0.5
-    obs_y = 0.5
-    obs_diam = 0.3
+    obs_x = 0.6
+    obs_y = 0.6
+    obs_diam = 0.2
     for i in range(N+1):
         g.append((rob_diam/2.0+obs_diam/2.0)-ca.sqrt((X[0, i]-obs_x)**2+(X[1, i]-obs_y)**2))
 
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     x0_ = x0.copy()
     x_m = np.zeros((n_states, N+1))
     xs = np.array([1.5, 1.5, 0.0]).reshape(-1, 1) # final state
-    u0 = np.array([1,2]*N).reshape(-1, 2).T# np.ones((N, 2)) # controls
+    u0 = np.array([0.0, 0.0]*N).reshape(-1, 2).T# np.ones((N, 2)) # controls
     x_c = [] # contains for the history of the state
     u_c = []
     t_c = [t0] # for the time

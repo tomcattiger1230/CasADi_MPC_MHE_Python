@@ -7,12 +7,14 @@ import numpy as np
 from draw import Draw_MPC_Obstacle
 
 def shift_movement(T, t0, x0, u, f):
+    print('hi {}'.format(u[0]))
     f_value = f(x0, u[0])
     st = x0 + T*f_value
     t = t0 + T
-    u_end = np.concatenate((u[:, 1:], u[:, -1:]))
+    print(f_value)
+    # u_end = np.concatenate((u[:, 1:], u[:, -1:]))
 
-    return t, st, u_end
+    return t, st #, u_end
 
 def prediction_state(x0, u, T, N):
     # define predition horizon function
@@ -54,14 +56,13 @@ if __name__ == '__main__':
         x_next = states[i, :] + f(states[i, :], controls[i, :]).T*T
         opti.subject_to(states[i+1, :]==x_next)
     #### obstacle definition
-    obs_x = 0.5
+    obs_x = 0.6
     obs_y = 0.5
-    obs_diam = 0.3
+    obs_diam = 0.2
     ##### add constraints to obstacle distance
     for i in range(N+1):
-        opti.subject_to(ca.sqrt((states[i, 0]-obs_x)**2+(states[i, 1]-obs_y)**2)-rob_diam/2.0-obs_diam/2.0>0.0)
-
-        # g.append(np.sqrt((X[i][0]-obs_x)**2+(X[i][1]-obs_y)**2)-(rob_diam/2.+obs_diam/2.))
+        temp_constraints_ = ca.sqrt((states[i, 0]-obs_x)**2+(states[i, 1]-obs_y)**2)-rob_diam/2.0-obs_diam/2.0
+        opti.subject_to(opti.bounded(0.0, temp_constraints_, 10.0))
     ## define the cost function
     ### some addition parameters
     Q = np.array([[1.0, 0.0, 0.0],[0.0, 5.0, 0.0],[0.0, 0.0, .1]])
@@ -80,7 +81,7 @@ if __name__ == '__main__':
     opti.subject_to(opti.bounded(-v_max, v, v_max))
     opti.subject_to(opti.bounded(-omega_max, omega, omega_max))
 
-    opts_setting = {'ipopt.max_iter':1000, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
+    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
     opti.solver('ipopt', opts_setting)
     final_state = np.array([1.5, 1.5, 0.0])
@@ -106,6 +107,7 @@ if __name__ == '__main__':
         sol = opti.solve()
         ## obtain the control input
         u = sol.value(controls)
+        print('org u {}'.format(u[:3]))
         x_m = sol.value(states)
         # print('u {}'.format(u[0, :]))
         # print("state {0} at {1}".format(sol.value(states), mpciter))
@@ -113,7 +115,9 @@ if __name__ == '__main__':
         t_c.append(t0)
         # next_states = prediction_state(x0=current_state, u=u, N=N, T=T)
         x_c.append(x_m)
-        t0, current_state, u0 = shift_movement(T, t0, current_state, u, f_np)
+        t0, current_state_  = shift_movement(T, t0, current_state, u, f_np)
+        current_state = current_state_.copy()
+        print(current_state)
         mpciter = mpciter + 1
         xx.append(current_state)
 
