@@ -114,7 +114,7 @@ if __name__ == '__main__':
         lbg.append(0.0)
         ubg.append(0.0)
     for _ in range(N+1):
-        lbg.append(0.18)
+        lbg.append(0.0)
         ubg.append(np.inf)
 
     ## add constraints to control and states notice that for the N+1 th state

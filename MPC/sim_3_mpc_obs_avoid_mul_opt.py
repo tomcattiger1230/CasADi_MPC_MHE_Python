@@ -6,15 +6,13 @@ import numpy as np
 
 from draw import Draw_MPC_Obstacle
 
-def shift_movement(T, t0, x0, u, f):
-    print('hi {}'.format(u[0]))
+def shift_movement(T, t0, x0, u, x_n, f):
     f_value = f(x0, u[0])
     st = x0 + T*f_value
     t = t0 + T
-    print(f_value)
-    # u_end = np.concatenate((u[:, 1:], u[:, -1:]))
-
-    return t, st #, u_end
+    u_end = np.concatenate((u[1:], u[-1:]))
+    x_n = np.concatenate((x_n[1:], x_n[-1:]))
+    return t, st, u_end, x_n
 
 def prediction_state(x0, u, T, N):
     # define predition horizon function
@@ -35,33 +33,33 @@ if __name__ == '__main__':
 
     opti = ca.Opti()
     # control variables, linear velocity v and angle velocity omega
-    controls = opti.variable(N, 2)
-    v = controls[:, 0]
-    omega = controls[:, 1]
-    states = opti.variable(N+1, 3)
-    x = states[:, 0]
-    y = states[:, 1]
-    theta = states[:, 2]
+    opt_controls = opti.variable(N, 2)
+    v = opt_controls[:, 0]
+    omega = opt_controls[:, 1]
+    opt_states = opti.variable(N+1, 3)
+    x = opt_states[:, 0]
+    y = opt_states[:, 1]
+    theta = opt_states[:, 2]
 
     # parameters
-    x0 = opti.parameter(3)
-    xs = opti.parameter(3)
+    opt_x0 = opti.parameter(3)
+    opt_xs = opti.parameter(3)
     # create model
-    f = lambda x, u: ca.vertcat(*[u[0]*np.cos(x[2]), u[0]*np.sin(x[2]), u[1]])
-    f_np = lambda x, u: np.array([u[0]*np.cos(x[2]), u[0]*np.sin(x[2]), u[1]])
+    f = lambda x_, u_: ca.vertcat(*[u_[0]*np.cos(x_[2]), u_[0]*np.sin(x_[2]), u_[1]])
+    f_np = lambda x_, u_: np.array([u_[0]*np.cos(x_[2]), u_[0]*np.sin(x_[2]), u_[1]])
 
     ## init_condition
-    opti.subject_to(states[0, :] == x0.T)
+    opti.subject_to(opt_states[0, :] == opt_x0.T)
     for i in range(N):
-        x_next = states[i, :] + f(states[i, :], controls[i, :]).T*T
-        opti.subject_to(states[i+1, :]==x_next)
+        x_next = opt_states[i, :] + f(opt_states[i, :], opt_controls[i, :]).T*T
+        opti.subject_to(opt_states[i+1, :]==x_next)
     #### obstacle definition
     obs_x = 0.6
     obs_y = 0.5
     obs_diam = 0.2
     ##### add constraints to obstacle distance
     for i in range(N+1):
-        temp_constraints_ = ca.sqrt((states[i, 0]-obs_x)**2+(states[i, 1]-obs_y)**2)-rob_diam/2.0-obs_diam/2.0
+        temp_constraints_ = ca.sqrt((opt_states[i, 0]-obs_x)**2+(opt_states[i, 1]-obs_y)**2)-rob_diam/2.0-obs_diam/2.0
         opti.subject_to(opti.bounded(0.0, temp_constraints_, 10.0))
     ## define the cost function
     ### some addition parameters
@@ -70,7 +68,7 @@ if __name__ == '__main__':
     #### cost function
     obj = 0 #### cost
     for i in range(N):
-        obj = obj + ca.mtimes([(states[i, :]-xs.T), Q, (states[i, :]-xs.T).T]) + ca.mtimes([controls[i, :], R, controls[i, :].T])
+        obj = obj + ca.mtimes([(opt_states[i, :]-opt_xs.T), Q, (opt_states[i, :]-opt_xs.T).T]) + ca.mtimes([opt_controls[i, :], R, opt_controls[i, :].T])
 
     opti.minimize(obj)
 
@@ -85,11 +83,13 @@ if __name__ == '__main__':
 
     opti.solver('ipopt', opts_setting)
     final_state = np.array([1.5, 1.5, 0.0])
-    opti.set_value(xs, final_state)
+    opti.set_value(opt_xs, final_state)
 
     t0 = 0
     init_state = np.array([0.0, 0.0, 0.0])
+    u0 = np.zeros((N, 2))
     current_state = init_state.copy()
+    next_states = np.zeros((N+1, 3))
     x_c = [] # contains for the history of the state
     u_c = []
     t_c = [t0] # for the time
@@ -101,23 +101,19 @@ if __name__ == '__main__':
 
     while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0):
         ## set parameter, here only update initial state of x (x0)
-        opti.set_value(x0, current_state)
-        # print(current_state)
+        opti.set_value(opt_x0, current_state)
+        opti.set_initial(opt_controls, u0.reshape(N, 2))# (N, 2)
+        opti.set_initial(opt_states, next_states) # (N+1, 3)
         ## solve the problem once again
         sol = opti.solve()
         ## obtain the control input
-        u = sol.value(controls)
-        print('org u {}'.format(u[:3]))
-        x_m = sol.value(states)
-        # print('u {}'.format(u[0, :]))
-        # print("state {0} at {1}".format(sol.value(states), mpciter))
-        u_c.append(u[0, :])
+        u_res = sol.value(opt_controls)
+        x_m = sol.value(opt_states)
+        u_c.append(u_res[0, :])
         t_c.append(t0)
-        # next_states = prediction_state(x0=current_state, u=u, N=N, T=T)
         x_c.append(x_m)
-        t0, current_state_  = shift_movement(T, t0, current_state, u, f_np)
+        t0, current_state_, u0, next_states = shift_movement(T, t0, current_state, u_res, x_m, f_np)
         current_state = current_state_.copy()
-        print(current_state)
         mpciter = mpciter + 1
         xx.append(current_state)
 
