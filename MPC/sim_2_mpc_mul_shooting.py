@@ -69,7 +69,7 @@ if __name__ == '__main__':
     P, = current_parameters[...]
 
     ### define
-    Q = np.array([[1.0, 0.0, 0.0],[0.0, 5.0, 0.0],[0.0, 0.0, .1]])
+    Q = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, .1]])
     R = np.array([[0.5, 0.0], [0.0, 0.05]])
     #### cost function
     obj = 0 #### cost
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     t0 = 0.0
     x0 = np.array([0.0, 0.0, 0.0]).reshape(-1, 1)# initial state
     x0_ = x0.copy()
-    xs = np.array([1.5, 1.5, 0.0]).reshape(-1, 1) # final state
+    xs = np.array([1.5, 1.5, np.pi/2.0]).reshape(-1, 1) # final state
     u0 = np.array([1,2]*N).reshape(-1, 2).T# np.ones((N, 2)) # controls
     ff_value = np.array([0.0, 0.0, 0.0]*(N+1)).reshape(-1, 3).T
     x_c = [] # contains for the history of the state
