@@ -108,11 +108,10 @@ if __name__ == '__main__':
         ## set parameter
         # p_ = np.concatenate((x0, xs))
         c_p = np.concatenate((x0, xs))
-        init_control = ca.reshape(u0, -1, 1)
+        init_control = ca.reshape(u0.T, -1, 1)
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         u0 = ca.reshape(res['x'], n_controls, N)
         ff_value = ff(u0, c_p) # [n_states, N]
-        print(ff_value.T)
         x_c.append(ff_value)
         u_c.append(u0[:, 0])
         t_c.append(t0)
