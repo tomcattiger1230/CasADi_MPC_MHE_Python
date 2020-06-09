@@ -15,30 +15,6 @@ def shift_movement(T, t0, x0, u, f):
 
     return t, st, u_end
 
-# def desired_trajectory(current_time_, x0_, N_):
-#     p_ = x0_.reshape(1, -1).tolist()[0]
-#     for i in range(N_):
-#         t_predict = current_time_ + i*T
-#         x_ref_ = 0.5 * t_predict
-#         y_ref_ = 1.0
-#         theta_ref_ = 0.0
-#         v_ref_ = 0.5
-#         omega_ref_ = 0.0
-#         if x_ref_ >= 12.0:
-#             x_ref_ = 12.0
-#             y_ref_ = 1.0
-#             theta_ref_ = 0.0
-#             v_ref_ = 0.0
-#             omega_ref_ = 0.0
-#         p_.append(x_ref_)
-#         p_.append(y_ref_)
-#         p_.append(theta_ref_)
-#         p_.append(v_ref_)
-#         p_.append(omega_ref_)
-#         # p_.append([x_ref_, y_ref_, theta_ref_, v_ref_, omega_ref_])
-#     print('trajectory at {0}, is {1}'.format(current_time_, p_))
-#     return np.array(p_).reshape(-1, 1)
-
 def desired_trajectory(current_time_, x0_, N_):
     # initial pose
     p_ = x0_.reshape(1, -1).tolist()[0]
