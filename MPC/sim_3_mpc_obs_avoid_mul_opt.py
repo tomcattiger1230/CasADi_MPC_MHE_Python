@@ -54,9 +54,9 @@ if __name__ == '__main__':
         x_next = opt_states[i, :] + f(opt_states[i, :], opt_controls[i, :]).T*T
         opti.subject_to(opt_states[i+1, :]==x_next)
     #### obstacle definition
-    obs_x = 0.6
+    obs_x = 0.5
     obs_y = 0.5
-    obs_diam = 0.2
+    obs_diam = 0.3
     ##### add constraints to obstacle distance
     for i in range(N+1):
         temp_constraints_ = ca.sqrt((opt_states[i, 0]-obs_x)**2+(opt_states[i, 1]-obs_y)**2)-rob_diam/2.0-obs_diam/2.0
@@ -109,6 +109,8 @@ if __name__ == '__main__':
         ## obtain the control input
         u_res = sol.value(opt_controls)
         x_m = sol.value(opt_states)
+        print(u_res[:3])
+        print(x_m[:3])
         u_c.append(u_res[0, :])
         t_c.append(t0)
         x_c.append(x_m)
