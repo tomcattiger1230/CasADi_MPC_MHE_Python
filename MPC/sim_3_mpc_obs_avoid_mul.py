@@ -160,6 +160,7 @@ if __name__ == '__main__':
         ## set parameter
         # print('x0 {}'.format(x0))
         c_p['P'] = np.concatenate((x0, xs))
+        print(ff_value.shape)
         init_control['X', lambda x:ca.horzcat(*x)] = ff_value # [:, 0:N+1]
         init_control['U', lambda x:ca.horzcat(*x)] = u0 # [:, 0:N]
         # print("run {0}\n {1}".format(mpciter, u0.T))

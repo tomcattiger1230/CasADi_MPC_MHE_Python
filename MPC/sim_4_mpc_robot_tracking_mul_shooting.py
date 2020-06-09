@@ -5,7 +5,7 @@ import casadi as ca
 import casadi.tools as ca_tools
 
 import numpy as np
-from draw import Draw_MPC_point_stabilization_v1
+from draw import Draw_MPC_tracking
 
 def shift_movement(T, t0, x0, u, f):
     f_value = f(x0, u[:, 0])
@@ -26,7 +26,7 @@ def shift_movement(T, t0, x0, u, f):
 #         omega_ref_ = 0.0
 #         if x_ref_ >= 12.0:
 #             x_ref_ = 12.0
-#             y_ref_ = 1.0 
+#             y_ref_ = 1.0
 #             theta_ref_ = 0.0
 #             v_ref_ = 0.0
 #             omega_ref_ = 0.0
@@ -40,7 +40,9 @@ def shift_movement(T, t0, x0, u, f):
 #     return np.array(p_).reshape(-1, 1)
 
 def desired_trajectory(current_time_, x0_, N_):
+    # initial pose
     p_ = x0_.reshape(1, -1).tolist()[0]
+    # trajectory for next N steps
     for i in range(N_):
         t_predict = current_time_ + i*T
         x_ref_ = 0.5 * t_predict
@@ -48,13 +50,13 @@ def desired_trajectory(current_time_, x0_, N_):
         theta_ref_ = 0.0
         if x_ref_ >= 12.0:
             x_ref_ = 12.0
-            y_ref_ = 1.0 
+            y_ref_ = 1.0
             theta_ref_ = 0.0
         p_.append(x_ref_)
         p_.append(y_ref_)
         p_.append(theta_ref_)
 
-    return np.array(p_).reshape(-1, N_+1)
+    return np.array(p_).reshape(N_+1, -1).T
 
 def desired_controls(current_time_, N_):
     p_ = []
@@ -68,7 +70,7 @@ def desired_controls(current_time_, N_):
             omega_ref_ = 0.0
         p_.append(v_ref_)
         p_.append(omega_ref_)
-    return np.array(p_).reshape(-1, N_)
+    return np.array(p_).reshape(N_, -1).T
 
 def get_estimated_result(data, N_):
     x_ = np.zeros((N_+1, 3))
@@ -130,7 +132,7 @@ if __name__ == '__main__':
     current_parameters = ca_tools.struct_symSX([
         (
             ca_tools.entry('U_ref', repeat=N, struct=controls),
-            ca_tools.entry('X_ref', repeat=N+1, struct=states),
+            ca_tools.entry('X_ref', repeat=N+1, struct=states)
         )
     ])
     U_ref, X_ref,  = current_parameters[...]
@@ -142,7 +144,7 @@ if __name__ == '__main__':
     obj = 0 #### cost
     #### constrains
     g = [] # equal constrains
-    g.append(X[0]-X_ref[0]) # initial condition constraints 
+    g.append(X[0]-X_ref[0]) # initial condition constraints
     for i in range(N):
         # state_error = X[i] - P[i*5+3:i*5+6]
         # control_error = U[i] - P[i*5+6:i*5+8]
@@ -197,18 +199,18 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
     ### inital test
-    c_p = current_parameters(0) # references 
+    c_p = current_parameters(0) # references
     init_input = optimizing_target(0)
     # print(u0.shape) u0 should have (n_controls, N)
-    while(mpciter-sim_time/T<0.0 and mpciter<5):
+    while(mpciter-sim_time/T<0.0 and mpciter<50):
         current_time = mpciter * T # current time
         ## obtain the desired trajectory
-        a = desired_trajectory(current_time, x0, N)
-        print(a.shape)
+        a = desired_controls(current_time, N)
+        print('trajectory {}'.format(a))
         c_p['X_ref', lambda x:ca.horzcat(*x)] = desired_trajectory(current_time, x0, N)
         c_p['U_ref', lambda x:ca.horzcat(*x)] = desired_controls(current_time, N)
         ## set parameter
-        init_input['X', lambda x:ca.horzcat(*x)] = ff_value 
+        init_input['X', lambda x:ca.horzcat(*x)] = ff_value
         init_input['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]
         res = solver(x0=init_input, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
@@ -227,4 +229,4 @@ if __name__ == '__main__':
         xx.append(x0)
         mpciter = mpciter + 1
     print(mpciter)
-    draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx )
+    draw_result = Draw_MPC_tracking(rob_diam=0.3, init_state=x0_, robot_states=xx )

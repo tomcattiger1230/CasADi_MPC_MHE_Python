@@ -18,7 +18,7 @@ class Draw_MPC_point_stabilization_v1(object):
         self.ax = plt.axes(xlim=(-0.8, 3), ylim=(-0.8, 3.))
         # self.fig.set_dpi(400)
         self.fig.set_size_inches(7, 6.5)
-        # init for plot 
+        # init for plot
         self.animation_init()
 
         self.ani = animation.FuncAnimation(self.fig, self.animation_loop, range(len(self.robot_states)),
@@ -71,7 +71,7 @@ class Draw_MPC_Obstacle(object):
         else:
             print('no obstacle given, break')
         self.fig.set_size_inches(7, 6.5)
-        # init for plot 
+        # init for plot
         self.animation_init()
 
         self.ani = animation.FuncAnimation(self.fig, self.animation_loop, range(len(self.robot_states)),
@@ -115,11 +115,11 @@ class Draw_MPC_tracking(object):
     def __init__(self, robot_states: list, init_state: np.array, rob_diam=0.3, export_fig=False):
         self.init_state = init_state
         self.robot_states = robot_states
-        self.rob_radius = rob_diam 
+        self.rob_radius = rob_diam
         self.fig = plt.figure()
         self.ax = plt.axes(xlim=(-1.0, 16), ylim=(-0.5, 1.5))
-        self.fig.set_size_inches(7, 6.5)
-        # init for plot 
+        # self.fig.set_size_inches(7, 6.5)
+        # init for plot
         self.animation_init()
 
         self.ani = animation.FuncAnimation(self.fig, self.animation_loop, range(len(self.robot_states)),
@@ -131,13 +131,13 @@ class Draw_MPC_tracking(object):
         plt.show()
 
     def animation_init(self, ):
-        # draw target line 
+        # draw target line
         self.target_line = plt.plot([0, 12], [1, 1], '-r')
-        # draw the initial position of the robot 
-        self.init_robot_position = plt.Circle(self.init_state[:2], self.rob_radius, color='r', fill=False) 
+        # draw the initial position of the robot
+        self.init_robot_position = plt.Circle(self.init_state[:2], self.rob_radius, color='r', fill=False)
         self.ax.add_artist(self.init_robot_position)
         self.robot_body = plt.Circle(self.init_state[:2], self.rob_radius, color='r', fill=False)
-        self.ax.add_artist(self.robot_body) 
+        self.ax.add_artist(self.robot_body)
         self.robot_arr = mpatches.Arrow(self.init_state[0], self.init_state[1],
                                         self.rob_radius * np.cos(self.init_state[2]),
                                         self.rob_radius * np.sin(self.init_state[2]), width=0.2, color='r')
