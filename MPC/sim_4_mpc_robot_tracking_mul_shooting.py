@@ -15,6 +15,30 @@ def shift_movement(T, t0, x0, u, f):
 
     return t, st, u_end
 
+# def desired_trajectory(current_time_, x0_, N_):
+#     p_ = x0_.reshape(1, -1).tolist()[0]
+#     for i in range(N_):
+#         t_predict = current_time_ + i*T
+#         x_ref_ = 0.5 * t_predict
+#         y_ref_ = 1.0
+#         theta_ref_ = 0.0
+#         v_ref_ = 0.5
+#         omega_ref_ = 0.0
+#         if x_ref_ >= 12.0:
+#             x_ref_ = 12.0
+#             y_ref_ = 1.0 
+#             theta_ref_ = 0.0
+#             v_ref_ = 0.0
+#             omega_ref_ = 0.0
+#         p_.append(x_ref_)
+#         p_.append(y_ref_)
+#         p_.append(theta_ref_)
+#         p_.append(v_ref_)
+#         p_.append(omega_ref_)
+#         # p_.append([x_ref_, y_ref_, theta_ref_, v_ref_, omega_ref_])
+#     print('trajectory at {0}, is {1}'.format(current_time_, p_))
+#     return np.array(p_).reshape(-1, 1)
+
 def desired_trajectory(current_time_, x0_, N_):
     p_ = x0_.reshape(1, -1).tolist()[0]
     for i in range(N_):
@@ -22,22 +46,29 @@ def desired_trajectory(current_time_, x0_, N_):
         x_ref_ = 0.5 * t_predict
         y_ref_ = 1.0
         theta_ref_ = 0.0
-        v_ref_ = 0.5
-        omega_ref_ = 0.0
         if x_ref_ >= 12.0:
             x_ref_ = 12.0
             y_ref_ = 1.0 
             theta_ref_ = 0.0
-            v_ref_ = 0.0
-            omega_ref_ = 0.0
         p_.append(x_ref_)
         p_.append(y_ref_)
         p_.append(theta_ref_)
+
+    return np.array(p_).reshape(-1, N_+1)
+
+def desired_controls(current_time_, N_):
+    p_ = []
+    for i in range(N_):
+        t_predict = current_time_ + i*T
+        x_ref_ = 0.5 * t_predict
+        v_ref_ = 0.5
+        omega_ref_ = 0.0
+        if x_ref_ >= 12.0:
+            v_ref_ = 0.0
+            omega_ref_ = 0.0
         p_.append(v_ref_)
         p_.append(omega_ref_)
-        # p_.append([x_ref_, y_ref_, theta_ref_, v_ref_, omega_ref_])
-    print('trajectory at {0}, is {1}'.format(current_time_, p_))
-    return np.array(p_).reshape(-1, 1)
+    return np.array(p_).reshape(-1, N_)
 
 def get_estimated_result(data, N_):
     x_ = np.zeros((N_+1, 3))
@@ -95,12 +126,14 @@ if __name__ == '__main__':
     ])
     U, X, = optimizing_target[...] # data are stored in list [], notice that ',' cannot be missed
 
+    ### basically here are the parameters that for trajectory definition
     current_parameters = ca_tools.struct_symSX([
         (
-            ca_tools.entry('P', shape=n_states+(n_states+n_controls)*N),
+            ca_tools.entry('U_ref', repeat=N, struct=controls),
+            ca_tools.entry('X_ref', repeat=N+1, struct=states),
         )
     ])
-    P, = current_parameters[...]
+    U_ref, X_ref,  = current_parameters[...]
 
     ### define
     Q = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, .5]])
@@ -109,16 +142,15 @@ if __name__ == '__main__':
     obj = 0 #### cost
     #### constrains
     g = [] # equal constrains
-    g.append(X[0]-P[:3]) # initial condition constraints 
+    g.append(X[0]-X_ref[0]) # initial condition constraints 
     for i in range(N):
-        state_error = X[i] - P[i*5+3:i*5+6]
-        control_error = U[i] - P[i*5+6:i*5+8]
-        obj = obj + ca.mtimes([state_error.T, Q, state_error]) + ca.mtimes([control_error.T, R, control_error])
-        # obj = obj + ca.mtimes([(X[i]-P[3:]).T, Q, X[i]-P[3:]]) + ca.mtimes([U[i].T, R, U[i]])
+        # state_error = X[i] - P[i*5+3:i*5+6]
+        # control_error = U[i] - P[i*5+6:i*5+8]
+        state_error_ = X[i] - X_ref[i]
+        control_error_ = U[i] - U_ref[i]
+        obj = obj + ca.mtimes([state_error_.T, Q, state_error_]) + ca.mtimes([control_error_.T, R, control_error_])
         x_next_ = f(X[i], U[i])*T + X[i]
         g.append(X[i+1] - x_next_)
-
-
 
     nlp_prob = {'f': obj, 'x': optimizing_target, 'p':current_parameters, 'g':ca.vertcat(*g)}
     opts_setting = {'ipopt.max_iter':2000, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
@@ -161,18 +193,20 @@ if __name__ == '__main__':
     t_c = [t0] # for the time
     xx = []
     sim_time = 20.0
-
+    xs = np.array([1.5, 1.5, 0.0]).reshape(-1, 1) # final state
     ## start MPC
     mpciter = 0
     ### inital test
-    c_p = current_parameters(0)
+    c_p = current_parameters(0) # references 
     init_input = optimizing_target(0)
     # print(u0.shape) u0 should have (n_controls, N)
     while(mpciter-sim_time/T<0.0 and mpciter<5):
         current_time = mpciter * T # current time
         ## obtain the desired trajectory
-        c_p['P'] = desired_trajectory(current_time, x0, N)
-        print(c_p['P'])
+        a = desired_trajectory(current_time, x0, N)
+        print(a.shape)
+        c_p['X_ref', lambda x:ca.horzcat(*x)] = desired_trajectory(current_time, x0, N)
+        c_p['U_ref', lambda x:ca.horzcat(*x)] = desired_controls(current_time, N)
         ## set parameter
         init_input['X', lambda x:ca.horzcat(*x)] = ff_value 
         init_input['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]

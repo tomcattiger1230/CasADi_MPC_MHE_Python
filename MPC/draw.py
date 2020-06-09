@@ -73,7 +73,7 @@ class Draw_MPC_Obstacle(object):
         
         plt.grid('--')
         if export_fig:
-            self.ani.save('withObstacle.gif', writer='imagemagick', fps=100)
+            self.ani.save('tracking.gif', writer='imagemagick', fps=100)
         plt.show()
 
 
@@ -99,3 +99,10 @@ class Draw_MPC_Obstacle(object):
         self.robot_arr = mpatches.Arrow(position[0], position[1], self.rob_radius*np.cos(orientation), self.rob_radius*np.sin(orientation), width=0.2, color='r')
         self.ax.add_patch(self.robot_arr)
         return self.robot_arr, self.robot_body
+
+class Draw_MPC_tracking(object):
+    def __init__(self, robot_states:list, init_state:np.array, target_state:np.array, obstacle:np.array, rob_diam=0.3, export_fig=False):
+        pass
+
+    def animation_init(self,):
+        pass
