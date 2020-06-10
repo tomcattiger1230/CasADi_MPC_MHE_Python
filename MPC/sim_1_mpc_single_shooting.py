@@ -130,7 +130,7 @@ if __name__ == '__main__':
         ## set parameter
         # p_ = np.concatenate((x0, xs))
         c_p['P'] = np.concatenate((x0, xs))
-        init_control['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]
+        init_control['U', lambda x:ca.horzcat(*x)] = u0 #[:, 0:N]
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         u0 = ca.reshape(res['x'], n_controls, N)
         ff_value = ff(init_control, c_p) # [n_states, N]

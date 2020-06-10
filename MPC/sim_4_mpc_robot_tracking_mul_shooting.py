@@ -7,13 +7,38 @@ import casadi.tools as ca_tools
 import numpy as np
 from draw import Draw_MPC_tracking
 
-def shift_movement(T, t0, x0, u, f):
+def shift_movement(T, t0, x0, u, x_, f):
     f_value = f(x0, u[:, 0])
     st = x0 + T*f_value
     t = t0 + T
     u_end = ca.horzcat(u[:, 1:], u[:, -1])
+    x_n = ca.horzcat(x_[:, 1:], x_[:, -1])
+    return t, st, u_end.T, x_n.T
 
-    return t, st, u_end
+def deisred_command_and_trajectory(t, T, x0_, N_):
+    # initial state / last state
+    x_ = x0_.reshape(1, -1).tolist()[0]
+    u_ = []
+    # states for the next N_ trajectories
+    for i in range(N_):
+        t_predict = t + T*i
+        x_ref_ = 0.5 * t_predict
+        y_ref_ = 1.0
+        theta_ref_ = 0.0
+        v_ref_ = 0.5
+        omega_ref_ = 0.0
+        if x_ref_ >= 12.0:
+            x_ref_ = 12.0
+            v_ref_ = 0.0
+        x_.append(x_ref_)
+        x_.append(y_ref_)
+        x_.append(theta_ref_)
+        u_.append(v_ref_)
+        u_.append(omega_ref_)
+    # return pose and command
+    x_ = np.array(x_).reshape(N_+1, -1).T
+    u_ = np.array(u_).reshape(u_, -1).T
+    return x_, u_
 
 def desired_trajectory(current_time_, x0_, N_):
     # initial pose
@@ -51,12 +76,11 @@ def desired_controls(current_time_, N_):
 def get_estimated_result(data, N_):
     x_ = np.zeros((N_+1, 3))
     u_ = np.zeros((N_, 2))
-    print(data[:3])
     x_[0] = data[:3].T#.reshape(-1, 1)
     for i in range(N_):
         x_[i+1] = data[3+i*5:6+i*5].T#.reshape(-1, 1)
         u_[i] = data[6+5*i:8+5*i].T#.reshape(-1, 1)
-    return x_.T, u_.T
+    return  u_, x_
 
 
 
@@ -124,7 +148,7 @@ if __name__ == '__main__':
     for i in range(N):
         # state_error = X[i] - P[i*5+3:i*5+6]
         # control_error = U[i] - P[i*5+6:i*5+8]
-        state_error_ = X[i] - X_ref[i]
+        state_error_ = X[i] - X_ref[i+1]
         control_error_ = U[i] - U_ref[i]
         obj = obj + ca.mtimes([state_error_.T, Q, state_error_]) + ca.mtimes([control_error_.T, R, control_error_])
         x_next_ = f(X[i], U[i])*T + X[i]
@@ -153,10 +177,10 @@ if __name__ == '__main__':
         ubx.append(2.0)
         ubx.append(np.inf)
     # for the N+1 state
-    lbx.append(-2.0)
+    lbx.append(-20.0)
     lbx.append(-2.0)
     lbx.append(-np.inf)
-    ubx.append(2.0)
+    ubx.append(20.0)
     ubx.append(2.0)
     ubx.append(np.inf)
 
@@ -165,6 +189,9 @@ if __name__ == '__main__':
     x0 = np.array([0.0, 0.0, 0.0]).reshape(-1, 1)# initial state
     x0_ = x0.copy()
     u0 = np.array([0.0, 0.0]*N).reshape(-1, 2).T# np.ones((N, 2)) # controls
+    next_trajectories = np.tile(x0.reshape(1, -1), N+1).reshape(N+1, -1)
+    next_states = next_trajectories.copy()
+    next_controls = np.zeros((N, 2))
     ff_value = np.array([0.0, 0.0, 0.0]*(N+1)).reshape(-1, 3).T
     x_c = [] # contains for the history of the state
     u_c = []
@@ -180,29 +207,24 @@ if __name__ == '__main__':
     # print(u0.shape) u0 should have (n_controls, N)
     while(mpciter-sim_time/T<0.0 and mpciter<50):
         current_time = mpciter * T # current time
-        ## obtain the desired trajectory
-        a = desired_controls(current_time, N)
-        print('trajectory {}'.format(a))
-        c_p['X_ref', lambda x:ca.horzcat(*x)] = desired_trajectory(current_time, x0, N)
-        c_p['U_ref', lambda x:ca.horzcat(*x)] = desired_controls(current_time, N)
+        print(mpciter)
+        ## obtain the desired trajectory, note that, the input should be (N*, states*), then the output will turn to (states*, N*)
+        c_p['X_ref', lambda x:ca.horzcat(*x)] = next_trajectories.T
+        c_p['U_ref', lambda x:ca.horzcat(*x)] = next_controls.T
         ## set parameter
-        init_input['X', lambda x:ca.horzcat(*x)] = ff_value
-        init_input['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]
+        init_input['X', lambda x:ca.horzcat(*x)] = next_states.T
+        init_input['U', lambda x:ca.horzcat(*x)] = u0
         res = solver(x0=init_input, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
-        print(estimated_opt.shape)
-        ff_value, u0 = get_estimated_result(estimated_opt, N)
-        # u0 = temp_estimated[:, :2].T
-        # ff_value = temp_estimated[:, 2:].T
-        # ff_value = np.concatenate((ff_value, estimated_opt[-3:].reshape(3, 1)), axis=1) # add the last estimated result now is n_states * (N+1)
-        print(ff_value.T)
-        x_c.append(ff_value)
-        u_c.append(u0[:, 0])
+        u_res, x_m = get_estimated_result(estimated_opt, N)
+        x_c.append(x_m)
+        u_c.append(u_res[0])
         t_c.append(t0)
-        t0, x0, u0 = shift_movement(T, t0, x0, u0, f)
+        t0, x0, u0, next_states = shift_movement(T, t0, x0, u_res, x_m, f)
         x0 = ca.reshape(x0, -1, 1)
         x0 = x0.full()
         xx.append(x0)
+        next_trajectories, next_controls = deisred_command_and_trajectory(T, t0, x0, N)
         mpciter = mpciter + 1
     print(mpciter)
     draw_result = Draw_MPC_tracking(rob_diam=0.3, init_state=x0_, robot_states=xx )

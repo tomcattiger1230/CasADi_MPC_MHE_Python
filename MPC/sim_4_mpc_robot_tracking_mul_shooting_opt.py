@@ -92,8 +92,8 @@ if __name__ == '__main__':
     opti.minimize(obj)
 
     #### boundrary and control conditions
-    opti.subject_to(opti.bounded(-2.0, x, 20.0))
-    opti.subject_to(opti.bounded(-2.0, y, 20.0))
+    opti.subject_to(opti.bounded(-20.0, x, 20.0))
+    opti.subject_to(opti.bounded(-2.0, y, 2.0))
     opti.subject_to(opti.bounded(-np.pi, theta, np.pi))
     opti.subject_to(opti.bounded(-v_max, v, v_max))
     opti.subject_to(opti.bounded(-omega_max, omega, omega_max))
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
 
-    while(mpciter-sim_time/T<0.0 ):
+    while(mpciter-sim_time/T<0.0):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(opt_x_ref, next_trajectories)
         opti.set_value(opt_u_ref, next_controls)
