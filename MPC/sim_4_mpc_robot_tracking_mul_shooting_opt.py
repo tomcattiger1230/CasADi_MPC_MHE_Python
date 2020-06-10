@@ -14,8 +14,28 @@ def shift_movement(T, t0, x0, u, x_n, f):
     x_n = np.concatenate((x_n[1:], x_n[-1:]))
     return t, st, u_end, x_n
 
-def desired_trajectory(t, x0_, N_):
-    pass
+def desired_command_and_trajectory(t, T, x0_:np.array, N_):
+    # initial state / last state
+    x_ = np.zeros((N_+1, 3))
+    x_[0] = x0_
+    u_ = np.zeros((N_, 2))
+    # states for the next N_ trajectories
+    for i in range(N_):
+        t_predict = t + T*i
+        x_ref_ = 0.5 * t_predict
+        y_ref_ = 1.0
+        theta_ref_ = 0.0
+        v_ref_ = 0.5
+        omega_ref_ = 0.0
+        if x_ref_ >= 12.0:
+            x_ref_ = 12.0
+            v_ref_ = 0.0
+        x_[i+1] = np.array([x_ref_, y_ref_, theta_ref_])
+        u_[i] = np.array([v_ref_, omega_ref_])
+    # return pose and command
+    return x_, u_
+
+
 
 def prediction_state(x0, u, T, N):
     # define predition horizon function
@@ -56,7 +76,7 @@ if __name__ == '__main__':
     for i in range(N):
         x_next = opt_states[i, :] + f(opt_states[i, :], opt_controls[i, :]).T*T
         opti.subject_to(opt_states[i+1, :]==x_next)
-    
+
     ## define the cost function
     ### some addition parameters
     Q = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, .5]])
@@ -64,15 +84,16 @@ if __name__ == '__main__':
     #### cost function
     obj = 0 #### cost
     for i in range(N):
-        state_error_ = opt_states[i, :] - opt_x_ref[i, :]
+        state_error_ = opt_states[i, :] - opt_x_ref[i+1, :]
         control_error_ = opt_controls[i, :] - opt_u_ref[i, :]
-        obj = obj + ca.mtimes([state_error_.T, Q, state_error_]) + ca.mtimes([control_error_.T, R, control_error_])
+        obj = obj + ca.mtimes([state_error_, Q, state_error_.T]) + ca.mtimes([control_error_, R, control_error_.T])
+    print(obj)
 
     opti.minimize(obj)
 
     #### boundrary and control conditions
-    opti.subject_to(opti.bounded(-2.0, x, 2.0))
-    opti.subject_to(opti.bounded(-2.0, y, 2.0))
+    opti.subject_to(opti.bounded(-2.0, x, 20.0))
+    opti.subject_to(opti.bounded(-2.0, y, 20.0))
     opti.subject_to(opti.bounded(-np.pi, theta, np.pi))
     opti.subject_to(opti.bounded(-v_max, v, v_max))
     opti.subject_to(opti.bounded(-omega_max, omega, omega_max))
@@ -80,46 +101,52 @@ if __name__ == '__main__':
     opts_setting = {'ipopt.max_iter':2000, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
     opti.solver('ipopt', opts_setting)
-    final_state = np.array([1.5, 1.5, 0.0])
-    opti.set_value(opt_xs, final_state)
 
     t0 = 0
     init_state = np.array([0.0, 0.0, 0.0])
+    current_state = init_state.copy()
     u0 = np.zeros((N, 2))
-    next_trajectories = np.tile(init_state, N+1).reshape(N+1, -1)
+    next_trajectories = np.tile(init_state, N+1).reshape(N+1, -1) # set the initial state as the first trajectories for the robot
     next_controls = np.zeros((N, 2))
     next_states = np.zeros((N+1, 3))
     x_c = [] # contains for the history of the state
     u_c = []
     t_c = [t0] # for the time
     xx = []
-    sim_time = 20.0
+    sim_time = 30.0
 
     ## start MPC
     mpciter = 0
 
-    while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0):
+    while(mpciter-sim_time/T<0.0 ):
         ## set parameter, here only update initial state of x (x0)
-        opti.set_value(opt_x0, current_state)
+        opti.set_value(opt_x_ref, next_trajectories)
+        opti.set_value(opt_u_ref, next_controls)
+        ## provide the initial guess of the optimization targets
         opti.set_initial(opt_controls, u0.reshape(N, 2))# (N, 2)
         opti.set_initial(opt_states, next_states) # (N+1, 3)
+        print('next_states {0} \n next_trajectories {1}'.format(next_states, next_trajectories))
+        print('next_control {0} \n control_trajectories {1}'.format(u0.reshape(N, 2), next_controls))
         ## solve the problem once again
         sol = opti.solve()
         ## obtain the control input
         u_res = sol.value(opt_controls)
         x_m = sol.value(opt_states)
-        print(u_res[:3])
-        print(x_m[:3])
+        print('command to execute {}'.format(u_res[:3]))
+        print('estimate states {}'.format(x_m))
+        # print(x_m[:3])
         u_c.append(u_res[0, :])
         t_c.append(t0)
         x_c.append(x_m)
-        t0, current_state_, u0, next_states = shift_movement(T, t0, current_state, u_res, x_m, f_np)
-        current_state = current_state_.copy()
-        mpciter = mpciter + 1
+        print('current state {}'.format(current_state))
+        t0, current_state, u0, next_states = shift_movement(T, t0, current_state, u_res, x_m, f_np)
         xx.append(current_state)
+        ## estimate the new desired trajectories and controls
+        next_trajectories, next_controls = desired_command_and_trajectory(t0, T, current_state, N)
+        mpciter = mpciter + 1
+
 
     ## after loop
     print(mpciter)
-    print('final error {}'.format(np.linalg.norm(final_state-current_state)))
     ## draw function
-    draw_result = Draw_MPC_Obstacle(rob_diam=0.3, init_state=init_state, target_state=final_state, robot_states=xx, obstacle=np.array([obs_x, obs_y, obs_diam/2.]), export_fig=False)
+    draw_result = Draw_MPC_tracking(rob_diam=0.3, init_state=init_state, robot_states=xx )
