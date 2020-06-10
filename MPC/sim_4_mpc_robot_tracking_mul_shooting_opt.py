@@ -56,22 +56,17 @@ if __name__ == '__main__':
     for i in range(N):
         x_next = opt_states[i, :] + f(opt_states[i, :], opt_controls[i, :]).T*T
         opti.subject_to(opt_states[i+1, :]==x_next)
-    #### obstacle definition
-    obs_x = 0.5
-    obs_y = 0.5
-    obs_diam = 0.3
-    ##### add constraints to obstacle distance
-    for i in range(N+1):
-        temp_constraints_ = ca.sqrt((opt_states[i, 0]-obs_x)**2+(opt_states[i, 1]-obs_y)**2)-rob_diam/2.0-obs_diam/2.0
-        opti.subject_to(opti.bounded(0.0, temp_constraints_, 10.0))
+    
     ## define the cost function
     ### some addition parameters
-    Q = np.array([[1.0, 0.0, 0.0],[0.0, 5.0, 0.0],[0.0, 0.0, .1]])
+    Q = np.array([[1.0, 0.0, 0.0],[0.0, 1.0, 0.0],[0.0, 0.0, .5]])
     R = np.array([[0.5, 0.0], [0.0, 0.05]])
     #### cost function
     obj = 0 #### cost
     for i in range(N):
-        obj = obj + ca.mtimes([(opt_states[i, :]-opt_xs.T), Q, (opt_states[i, :]-opt_xs.T).T]) + ca.mtimes([opt_controls[i, :], R, opt_controls[i, :].T])
+        state_error_ = opt_states[i, :] - opt_x_ref[i, :]
+        control_error_ = opt_controls[i, :] - opt_u_ref[i, :]
+        obj = obj + ca.mtimes([state_error_.T, Q, state_error_]) + ca.mtimes([control_error_.T, R, control_error_])
 
     opti.minimize(obj)
 
@@ -82,7 +77,7 @@ if __name__ == '__main__':
     opti.subject_to(opti.bounded(-v_max, v, v_max))
     opti.subject_to(opti.bounded(-omega_max, omega, omega_max))
 
-    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
+    opts_setting = {'ipopt.max_iter':2000, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
     opti.solver('ipopt', opts_setting)
     final_state = np.array([1.5, 1.5, 0.0])
@@ -91,7 +86,8 @@ if __name__ == '__main__':
     t0 = 0
     init_state = np.array([0.0, 0.0, 0.0])
     u0 = np.zeros((N, 2))
-    current_state = init_state.copy()
+    next_trajectories = np.tile(init_state, N+1).reshape(N+1, -1)
+    next_controls = np.zeros((N, 2))
     next_states = np.zeros((N+1, 3))
     x_c = [] # contains for the history of the state
     u_c = []
