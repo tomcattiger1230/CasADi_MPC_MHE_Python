@@ -130,7 +130,7 @@ if __name__ == '__main__':
         ## obtain the control input
         u_res = sol.value(opt_controls)
         x_m = sol.value(opt_states)
-        print('command to execute {}'.format(u_res[:3]))
+        print('command to execute {}'.format(u_res))
         print('estimate states {}'.format(x_m))
         # print(x_m[:3])
         u_c.append(u_res[0, :])

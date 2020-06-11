@@ -43,10 +43,10 @@ def desired_command_and_trajectory(t, T, x0_, N_):
 def get_estimated_result(data, N_):
     x_ = np.zeros((N_+1, 3))
     u_ = np.zeros((N_, 2))
-    x_[0] = data[:3].T#.reshape(-1, 1)
     for i in range(N_):
-        x_[i+1] = data[3+i*5:6+i*5].T#.reshape(-1, 1)
-        u_[i] = data[6+5*i:8+5*i].T#.reshape(-1, 1)
+        u_[i] = data[i*5:i*5+2].T
+        x_[i] = data[i*5+2:i*5+5].T
+    x_[-1] = data[-3:].T 
     return  u_, x_
 
 
@@ -157,29 +157,31 @@ if __name__ == '__main__':
     next_trajectories = np.tile(current_state.reshape(1, -1), N+1).reshape(N+1, -1)
     next_states = next_trajectories.copy()
     next_controls = np.zeros((N, 2))
-    ff_value = np.array([0.0, 0.0, 0.0]*(N+1)).reshape(-1, 3).T
     x_c = [] # contains for the history of the state
     u_c = []
     t_c = [t0] # for the time
     xx = []
-    sim_time = 20.0
+    sim_time = 30.0
     ## start MPC
     mpciter = 0
     ### inital test
     c_p = current_parameters(0) # references
     init_input = optimizing_target(0)
     # print(u0.shape) u0 should have (n_controls, N)
-    while(mpciter-sim_time/T<0.0 and mpciter<2):
+    while(mpciter-sim_time/T<0.0):
         current_time = mpciter * T # current time
         print(mpciter)
         ## obtain the desired trajectory, note that, the input should be (N*, states*), then the output will turn to (states*, N*)
         c_p['X_ref', lambda x:ca.horzcat(*x)] = next_trajectories.T
         c_p['U_ref', lambda x:ca.horzcat(*x)] = next_controls.T
+        print('next_states {0} \n next_trajectories {1}'.format(next_states, next_trajectories))
+        print('next_control {0} \n control_trajectories {1}'.format(ca.reshape(u0, N, 2), next_controls))
         ## set parameter
         init_input['X', lambda x:ca.horzcat(*x)] = next_states.T
         init_input['U', lambda x:ca.horzcat(*x)] = u0
         res = solver(x0=init_input, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
+        print(estimated_opt)
         u_res, x_m = get_estimated_result(estimated_opt, N) # the result are in form (N*, states)
         print('control {0}, and trajectory {1}'.format(u_res, x_m))
         x_c.append(x_m)
