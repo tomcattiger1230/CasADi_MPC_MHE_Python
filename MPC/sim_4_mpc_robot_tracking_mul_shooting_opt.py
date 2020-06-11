@@ -87,8 +87,6 @@ if __name__ == '__main__':
         state_error_ = opt_states[i, :] - opt_x_ref[i+1, :]
         control_error_ = opt_controls[i, :] - opt_u_ref[i, :]
         obj = obj + ca.mtimes([state_error_, Q, state_error_.T]) + ca.mtimes([control_error_, R, control_error_.T])
-    print(obj)
-
     opti.minimize(obj)
 
     #### boundrary and control conditions
@@ -118,7 +116,7 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
 
-    while(mpciter-sim_time/T<0.0):
+    while(mpciter-sim_time/T<0.0 and mpciter<2):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(opt_x_ref, next_trajectories)
         opti.set_value(opt_u_ref, next_controls)

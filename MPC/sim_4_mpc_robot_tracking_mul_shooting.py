@@ -13,9 +13,9 @@ def shift_movement(T, t0, x0, u, x_, f):
     t = t0 + T
     u_end = ca.horzcat(u[:, 1:], u[:, -1])
     x_n = ca.horzcat(x_[:, 1:], x_[:, -1])
-    return t, st, u_end.T, x_n.T
+    return t, st, u_end, x_n
 
-def deisred_command_and_trajectory(t, T, x0_, N_):
+def desired_command_and_trajectory(t, T, x0_, N_):
     # initial state / last state
     x_ = x0_.reshape(1, -1).tolist()[0]
     u_ = []
@@ -36,42 +36,9 @@ def deisred_command_and_trajectory(t, T, x0_, N_):
         u_.append(v_ref_)
         u_.append(omega_ref_)
     # return pose and command
-    x_ = np.array(x_).reshape(N_+1, -1).T
-    u_ = np.array(u_).reshape(u_, -1).T
+    x_ = np.array(x_).reshape(N_+1, -1)
+    u_ = np.array(u_).reshape(N, -1)
     return x_, u_
-
-def desired_trajectory(current_time_, x0_, N_):
-    # initial pose
-    p_ = x0_.reshape(1, -1).tolist()[0]
-    # trajectory for next N steps
-    for i in range(N_):
-        t_predict = current_time_ + i*T
-        x_ref_ = 0.5 * t_predict
-        y_ref_ = 1.0
-        theta_ref_ = 0.0
-        if x_ref_ >= 12.0:
-            x_ref_ = 12.0
-            y_ref_ = 1.0
-            theta_ref_ = 0.0
-        p_.append(x_ref_)
-        p_.append(y_ref_)
-        p_.append(theta_ref_)
-
-    return np.array(p_).reshape(N_+1, -1).T
-
-def desired_controls(current_time_, N_):
-    p_ = []
-    for i in range(N_):
-        t_predict = current_time_ + i*T
-        x_ref_ = 0.5 * t_predict
-        v_ref_ = 0.5
-        omega_ref_ = 0.0
-        if x_ref_ >= 12.0:
-            v_ref_ = 0.0
-            omega_ref_ = 0.0
-        p_.append(v_ref_)
-        p_.append(omega_ref_)
-    return np.array(p_).reshape(N_, -1).T
 
 def get_estimated_result(data, N_):
     x_ = np.zeros((N_+1, 3))
@@ -146,8 +113,6 @@ if __name__ == '__main__':
     g = [] # equal constrains
     g.append(X[0]-X_ref[0]) # initial condition constraints
     for i in range(N):
-        # state_error = X[i] - P[i*5+3:i*5+6]
-        # control_error = U[i] - P[i*5+6:i*5+8]
         state_error_ = X[i] - X_ref[i+1]
         control_error_ = U[i] - U_ref[i]
         obj = obj + ca.mtimes([state_error_.T, Q, state_error_]) + ca.mtimes([control_error_.T, R, control_error_])
@@ -186,10 +151,10 @@ if __name__ == '__main__':
 
     # Simulation
     t0 = 0.0
-    x0 = np.array([0.0, 0.0, 0.0]).reshape(-1, 1)# initial state
-    x0_ = x0.copy()
+    init_state = np.array([0.0, 0.0, 0.0]).reshape(-1, 1)# initial state
+    current_state = init_state.copy()
     u0 = np.array([0.0, 0.0]*N).reshape(-1, 2).T# np.ones((N, 2)) # controls
-    next_trajectories = np.tile(x0.reshape(1, -1), N+1).reshape(N+1, -1)
+    next_trajectories = np.tile(current_state.reshape(1, -1), N+1).reshape(N+1, -1)
     next_states = next_trajectories.copy()
     next_controls = np.zeros((N, 2))
     ff_value = np.array([0.0, 0.0, 0.0]*(N+1)).reshape(-1, 3).T
@@ -198,14 +163,13 @@ if __name__ == '__main__':
     t_c = [t0] # for the time
     xx = []
     sim_time = 20.0
-    xs = np.array([1.5, 1.5, 0.0]).reshape(-1, 1) # final state
     ## start MPC
     mpciter = 0
     ### inital test
     c_p = current_parameters(0) # references
     init_input = optimizing_target(0)
     # print(u0.shape) u0 should have (n_controls, N)
-    while(mpciter-sim_time/T<0.0 and mpciter<50):
+    while(mpciter-sim_time/T<0.0 and mpciter<2):
         current_time = mpciter * T # current time
         print(mpciter)
         ## obtain the desired trajectory, note that, the input should be (N*, states*), then the output will turn to (states*, N*)
@@ -216,15 +180,16 @@ if __name__ == '__main__':
         init_input['U', lambda x:ca.horzcat(*x)] = u0
         res = solver(x0=init_input, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
-        u_res, x_m = get_estimated_result(estimated_opt, N)
+        u_res, x_m = get_estimated_result(estimated_opt, N) # the result are in form (N*, states)
+        print('control {0}, and trajectory {1}'.format(u_res, x_m))
         x_c.append(x_m)
         u_c.append(u_res[0])
         t_c.append(t0)
-        t0, x0, u0, next_states = shift_movement(T, t0, x0, u_res, x_m, f)
-        x0 = ca.reshape(x0, -1, 1)
-        x0 = x0.full()
-        xx.append(x0)
-        next_trajectories, next_controls = deisred_command_and_trajectory(T, t0, x0, N)
+        t0, current_state, u0, next_states = shift_movement(T, t0, current_state, u_res.T, x_m, f)
+        current_state = ca.reshape(current_state, -1, 1)
+        current_state = current_state.full()
+        xx.append(current_state)
+        next_trajectories, next_controls = desired_command_and_trajectory(t0, T, current_state, N)
         mpciter = mpciter + 1
     print(mpciter)
-    draw_result = Draw_MPC_tracking(rob_diam=0.3, init_state=x0_, robot_states=xx )
+    draw_result = Draw_MPC_tracking(rob_diam=0.3, init_state=init_state, robot_states=xx )
