@@ -130,5 +130,13 @@ if __name__ == '__main__':
         alpha.append(np.arctan(xx_np[i, 1]/xx_np[i, 0]) + np.sqrt(meas_cov[1, 1]*np.random.rand()))
     y_measurements = np.concatenate((np.array(r).reshape(-1, 1), np.array(alpha).reshape(-1, 1)), axis=1)
 
-    draw_gt_measurements(t_c, xx_np, y_measurements)
-    draw_gtmeas_noisemeas(t_c, xx_np, y_measurements)
+    # draw_gt_measurements(t_c, xx_np, y_measurements)
+    # draw_gtmeas_noisemeas(t_c, xx_np, y_measurements)
+
+
+    ## MHE 
+    ### now we only know the control u_c and y_measurements
+    u_c_np = np.array(u_c)
+    T_mhe = 0.2
+    N_MHE = y_measurements.shape[0] - 1 # estimation horizon 
+    
