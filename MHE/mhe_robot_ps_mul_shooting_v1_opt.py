@@ -136,7 +136,64 @@ if __name__ == '__main__':
 
     ## MHE 
     ### now we only know the control u_c and y_measurements
+    mhe_opt = ca.Opti() # new optimization class
     u_c_np = np.array(u_c)
     T_mhe = 0.2
     N_MHE = y_measurements.shape[0] - 1 # estimation horizon 
+    print("MHE horizon {}".format(N_MHE))
+    ### using the same model and states （states, f, next_controls)
+    mhe_states = mhe_opt.variable(N_MHE+1, n_states)
+    mhe_x = mhe_states[:, 0]
+    mhe_y = mhe_states[:, 1]
+    mhe_theta = mhe_states[:, 2]
+    mhe_controls = mhe_opt.variable(N_MHE, n_controls)
+    mhe_v = mhe_controls[:, 0]
+    mhe_omega = mhe_controls[:, 1]
+    mhe_mes_ref = mhe_opt.parameter(N_MHE+1, 2)
+    mhe_u_ref = mhe_opt.parameter(N_MHE, 2)
+    ## measurement model  
+    f_m = lambda x, y: ca.vertcat(*[np.sqrt(x**2+y**2), np.arctan(y/x)])
+    V_mat = np.linalg.inv(np.sqrt(meas_cov))
+    W_mat = np.linalg.inv(np.sqrt(con_cov))
     
+    obj_mhe = 0
+    for i in range(N_MHE+1):
+        h_x = f_m(mhe_states[i, 0], mhe_states[i, 1])
+        temp_diff_ = mhe_mes_ref[i] - h_x
+        obj_mhe = obj_mhe + ca.mtimes([temp_diff_.T, V_mat, temp_diff_])
+
+    for i in range(N_MHE):
+        temp_diff_ = mhe_u_ref[i, :] - mhe_controls[i, :]
+        obj_mhe = obj_mhe + ca.mtimes([temp_diff_, W_mat, temp_diff_.T])
+
+    mhe_opt.minimize(obj_mhe)
+    
+    ## multiple shooting constraints
+    for i in range(N_MHE):
+        x_next_ = mhe_states[i, :] + f(mhe_states[i, :], mhe_controls[i, :]).T*T
+        mhe_opt.subject_to(mhe_states[i+1, :]==x_next_)
+
+    #### boundrary and control conditions
+    mhe_opt.subject_to(mhe_opt.bounded(-2.0, mhe_x, 2.0))
+    mhe_opt.subject_to(mhe_opt.bounded(-2.0, mhe_y, 2.0))
+    mhe_opt.subject_to(mhe_opt.bounded(-np.inf, mhe_theta, np.inf))
+    mhe_opt.subject_to(mhe_opt.bounded(-v_max, mhe_v, v_max))
+    mhe_opt.subject_to(mhe_opt.bounded(-omega_max, mhe_omega, omega_max))
+    mhe_opt.solver('ipopt', opts_setting)
+
+    ## MHE simulation
+    mhe_opt.set_value(mhe_mes_ref, y_measurements)
+    mhe_opt.set_value(mhe_u_ref, np.array(u_c[:-1]))
+    ### initial states from the measured range and bearning
+    init_state_m = np.zeros((N_MHE+1, n_states))
+    for i in range(N_MHE+1):
+        init_state_m[i] = np.array([y_measurements[i, 0]*np.cos(y_measurements[i, 1]), 
+                                    y_measurements[i, 0]*np.sin(y_measurements[i, 1]), 
+                                    0.0])
+    mhe_opt.set_initial(mhe_states, init_state_m)
+    mhe_opt.set_initial(mhe_controls, np.array(u_c[:-1]))# (N, 2)
+    ## solve the MHE
+    sol = mhe_opt.solve()
+        ## obtain the control input
+        #u_res = sol.value(opt_controls)
+        #x_m = sol.value(opt_states)
