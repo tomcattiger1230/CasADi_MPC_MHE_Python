@@ -22,71 +22,49 @@ if __name__ == '__main__':
     v_max = 0.6
     omega_max = np.pi/4.0
 
-    states = ca_tools.struct_symSX([
-        (
-            ca_tools.entry('x'),
-            ca_tools.entry('y'),
-            ca_tools.entry('theta')
-        )
-    ])
-    x, y, theta = states[...]
-    n_states = states.size
+    x = ca.SX.sym('x')
+    y = ca.SX.sym('y')
+    theta = ca.SX.sym('theta')
+    states = ca.vertcat(x, y)
+    states = ca.vertcat(states, theta)
+    n_states = states.size()[0]
 
-    controls  = ca_tools.struct_symSX([
-        (
-            ca_tools.entry('v'),
-            ca_tools.entry('omega')
-        )
-    ])
-    v, omega = controls[...]
-    n_controls = controls.size
+    v = ca.SX.sym('v')
+    omega = ca.SX.sym('omega')
+    controls = ca.vertcat(v, omega)
+    n_controls = controls.size()[0]
 
     ## rhs
-    rhs = ca_tools.struct_SX(states)
-    rhs['x'] = v*np.cos(theta)
-    rhs['y'] = v*np.sin(theta)
-    rhs['theta'] = omega
-    # rhs = v*np.cos(theta)
-    # rhs = ca.vertcat(rhs, v*np.sin(theta))
-    # rhs = ca.vertcat(rhs, omega)
+    rhs = ca.vertcat(v*np.cos(theta), v*np.sin(theta))
+    rhs = ca.vertcat(rhs, omega)
 
     ## function
     f = ca.Function('f', [states, controls], [rhs], ['input_state', 'control_input'], ['rhs'])
 
     ## for MPC
-    optimizing_target = ca_tools.struct_symSX([
-        (
-            ca_tools.entry('U', repeat=N, struct=controls)
-        )
-    ])
-    U, = optimizing_target[...] # data are stored in list [], notice that ',' cannot be missed
+    U = ca.SX.sym('U', n_controls, N)
 
     X = ca.SX.sym('X', n_states, N+1)
 
-    current_parameters = ca_tools.struct_symSX([
-        (
-            ca_tools.entry('P', shape=n_states+n_states),
-        )
-    ])
-    P, = current_parameters[...]
-    #P = ca.SX.sym('P', n_states+n_states) # initial pose and final pose
+    P = ca.SX.sym('P', n_states+n_states)
+
 
     ### define
     X[:, 0] = P[:3] # initial condiction
 
     #### define the relationship within the horizon
     for i in range(N):
-        f_value = f(X[:, i], U[i])
+        f_value = f(X[:, i], U[:, i])
         X[:, i+1] = X[:, i] + f_value*T
 
-    ff = ca.Function('ff', [optimizing_target, current_parameters], [X], ['input_U', 'target_state'], ['horizon_states'])
+    ff = ca.Function('ff', [U, P], [X], ['input_U', 'target_state'], ['horizon_states'])
 
     Q = np.array([[1.0, 0.0, 0.0],[0.0, 5.0, 0.0],[0.0, 0.0, .1]])
     R = np.array([[0.5, 0.0], [0.0, 0.05]])
     #### cost function
     obj = 0 #### cost
     for i in range(N):
-        obj = obj + ca.mtimes([(X[:, i]-P[3:]).T, Q, X[:, i]-P[3:]]) + ca.mtimes([U[i].T, R, U[i]])
+        obj = obj + ca.mtimes([(X[:, i]-P[3:]).T, Q, X[:, i]-P[3:]]) + ca.mtimes([U[:, i].T, R, U[:, i]])
 
     #### constrains
     g = [] # equal constrains
@@ -94,7 +72,7 @@ if __name__ == '__main__':
         g.append(X[0, i])
         g.append(X[1, i])
 
-    nlp_prob = {'f': obj, 'x': optimizing_target, 'p':current_parameters, 'g':ca.vertcat(*g)}
+    nlp_prob = {'f': obj, 'x': ca.reshape(U, -1, 1), 'p':P, 'g':ca.vertcat(*g)}
     opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
@@ -123,18 +101,17 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
     ### inital test
-    c_p = current_parameters(0)
-    init_control = optimizing_target(0)
+    # c_p = P(0)
+    #init_control = U(0)
     # print(u0.shape) u0 should have (n_controls, N)
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         # p_ = np.concatenate((x0, xs))
-        c_p['P'] = np.concatenate((x0, xs))
-        init_control['U', lambda x:ca.horzcat(*x)] = u0 #[:, 0:N]
+        c_p = np.concatenate((x0, xs))
+        init_control = ca.reshape(u0.T, -1, 1)
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         u0 = ca.reshape(res['x'], n_controls, N)
-        ff_value = ff(init_control, c_p) # [n_states, N]
-        print(ff_value.T)
+        ff_value = ff(u0, c_p) # [n_states, N]
         x_c.append(ff_value)
         u_c.append(u0[:, 0])
         t_c.append(t0)
