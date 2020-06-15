@@ -126,8 +126,8 @@ if __name__ == '__main__':
     r = []
     alpha = []
     for i in range(len(xx)):
-        r.append(np.sqrt(xx_np[i, 0]**2+xx_np[i, 1]**2) + np.sqrt(meas_cov[0, 0]*np.random.rand()))
-        alpha.append(np.arctan(xx_np[i, 1]/xx_np[i, 0]) + np.sqrt(meas_cov[1, 1]*np.random.rand()))
+        r.append(np.sqrt(xx_np[i, 0]**2+xx_np[i, 1]**2) + np.sqrt(meas_cov[0, 0])*np.random.randn())
+        alpha.append(np.arctan(xx_np[i, 1]/xx_np[i, 0]) + np.sqrt(meas_cov[1, 1])*np.random.randn())
     y_measurements = np.concatenate((np.array(r).reshape(-1, 1), np.array(alpha).reshape(-1, 1)), axis=1)
 
     # draw_gt_measurements(t_c, xx_np, y_measurements)

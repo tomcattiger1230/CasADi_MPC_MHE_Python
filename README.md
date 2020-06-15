@@ -4,7 +4,7 @@ This repository is an implementation of the work from Mohamed W. Mehrez. I conve
 
 ## Environments
 
-- python 3.8 (it should work ab 3.5 or 2.7)
+- python 3.8 (it should work up 3.5 or 2.7)
 - CasADi == 3.5.1
 
 ## Some notations
