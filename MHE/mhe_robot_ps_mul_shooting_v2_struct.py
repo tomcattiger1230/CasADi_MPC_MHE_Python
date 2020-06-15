@@ -17,10 +17,18 @@ def shift_movement(T, t0, x0, u, f):
 
 def structure_result(data, n_c=2, n_s=3,):
     temp_1 = data[:-n_s].reshape(-1, n_c+n_s)
+    # print(temp_1)
     u_ = temp_1[:, :n_c].T
     s_ = temp_1[:, n_c:].T
     s_ = np.concatenate((s_, data[-n_s:].reshape(n_s, 1)), axis=1)
     return u_, s_ # output in shape (n, N)
+
+def shift_trajectory(state, u):
+    ##########################################################
+    ## state and u in form (state, N)
+    state_ = np.concatenate((state.T[1:], state.T[-1:]))
+    u_ = np.concatenate((u.T[1:], u.T[-1:]))
+    return u_, state_
 
 if __name__ == '__main__':
     T = 0.2 # sampling time [s]
@@ -182,7 +190,7 @@ if __name__ == '__main__':
     ## MHE 
     u_c_np = np.array(u_c)
     T_mhe = 0.2
-    N_MHE = y_measurements.shape[0] - 1 # estimation horizon
+    N_MHE = 6 # estimation horizon
     print("MHE horizon {}".format(N_MHE))
     ### using the same model and states （states, f, next_controls)
     mhe_target = ca_tools.struct_symSX([
@@ -266,18 +274,34 @@ if __name__ == '__main__':
     ## MHE simulation
     X0 = np.zeros((N_MHE+1, 3))
     U0 = np.array(u_c[:N_MHE])
+    X_estimate = None
+    U_estimate = None
     for i in range(N_MHE+1):
         X0[i] = np.array([y_measurements[i, 0]*np.cos(y_measurements[i, 1]),
         y_measurements[i, 0]*np.sin(y_measurements[i, 1]),
                                     0.0])
     init_mhe_state = mhe_target(0)
     init_mhe_params = mhe_params(0)
-    init_mhe_state['mhe_U', lambda x:ca.horzcat(*x)] = U0.T # input size should be (controls, N_MHE)
-    init_mhe_state['mhe_X', lambda x:ca.horzcat(*x)] = X0.T 
-    init_mhe_params['Mes_ref', lambda x:ca.horzcat(*x)] = y_measurements.T
-    init_mhe_params['U_ref', lambda x:ca.horzcat(*x)] = np.array(u_c[:N_MHE]).T
-    mhe_res = mhe_solver(x0=init_mhe_state, p=init_mhe_params, lbg=mhe_lbg, lbx=mhe_lbx, ubg=mhe_ubg, ubx=mhe_ubx)
-    mhe_estimated = mhe_res['x'].full()
 
-    u_sol, state_sol = structure_result(mhe_estimated)
-    draw_gt_mhe_measurements(t_c, xx_np, y_measurements, state_sol.T)
+    for i in range(y_measurements.shape[0]-N_MHE):
+        mheiter = i
+        init_mhe_state['mhe_U', lambda x:ca.horzcat(*x)] = U0.T # input size should be (controls, N_MHE)
+        init_mhe_state['mhe_X', lambda x:ca.horzcat(*x)] = X0.T 
+        init_mhe_params['Mes_ref', lambda x:ca.horzcat(*x)] = y_measurements[i:i+N_MHE+1].T
+        init_mhe_params['U_ref', lambda x:ca.horzcat(*x)] = np.array(u_c[i:i+N_MHE]).T
+        mhe_res = mhe_solver(x0=init_mhe_state, p=init_mhe_params, lbg=mhe_lbg, lbx=mhe_lbx, ubg=mhe_ubg, ubx=mhe_ubx)
+        mhe_estimated = mhe_res['x'].full()
+
+        u_sol, state_sol = structure_result(mhe_estimated)
+
+        if U_estimate is None:
+            U_estimate = u_sol.T[N_MHE-1:].reshape(1, -1)
+        else:
+            U_estimate = np.concatenate((U_estimate, u_sol.T[N_MHE-1].reshape(1, -1)))
+        if X_estimate is None:
+            X_estimate = state_sol.T[N_MHE:].reshape(1, -1)
+        else:
+            X_estimate = np.concatenate((X_estimate, state_sol.T[N_MHE:].reshape(1, -1)))
+        # shift trajectories to initialize the next step
+        U0, X0 = shift_trajectory(state_sol, u_sol)
+    draw_gt_mhe_measurements(t_c, xx_np, y_measurements, X_estimate, n_mhe=N_MHE)
