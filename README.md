@@ -1,6 +1,11 @@
 # CasADi_MPC_MHE_Python
 
-This repository is an implementation of the work from Mohamed W. Mehrez. I convert the original code from MATLAB to the Python. His videos can be found in Youtube [link](https://www.youtube.com/playlist?list=PLK8squHT_Uzej3UCUHjtOtm5X7pMFSgAL), and his codes in MATLAB are in his [github](https://github.com/MMehrez/MPC-and-MHE-implementation-in-MATLAB-using-Casadi)
+This repository is an implementation of the work from Mohamed W. Mehrez. I convert the original code from MATLAB to the Python. His videos can be found in Youtube [list](https://www.youtube.com/playlist?list=PLK8squHT_Uzej3UCUHjtOtm5X7pMFSgAL), and his codes in MATLAB are given in his [github](https://github.com/MMehrez/MPC-and-MHE-implementation-in-MATLAB-using-Casadi).
+
+## Environments
+
+- python 3.8 (it should work ab 3.5 or 2.7)
+- CasADi == 3.5.1
 
 ## Some notations
 
