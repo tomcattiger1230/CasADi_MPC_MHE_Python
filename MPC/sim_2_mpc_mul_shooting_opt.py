@@ -111,7 +111,7 @@ if __name__ == '__main__':
         # next_states_pred = prediction_state(x0=current_state, u=u_res, N=N, T=T)
         x_c.append(next_states_pred)
         # for next loop
-        t0, current_state, u0, next_states = shift_movement(T, t0, current_state, u_res, next_states, f_np)
+        t0, current_state, u0, next_states = shift_movement(T, t0, current_state, u_res, next_states_pred, f_np)
         mpciter = mpciter + 1
         xx.append(current_state)
     t_v = np.array(index_t)

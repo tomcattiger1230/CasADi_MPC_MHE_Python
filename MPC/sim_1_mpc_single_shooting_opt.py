@@ -106,9 +106,9 @@ if __name__ == '__main__':
         u = sol.value(opt_controls)
         u_c.append(u[0, :])
         t_c.append(t0)
-        next_states = prediction_state(x0=current_state, u=u, N=N, T=T)
-        x_c.append(next_states)
-        t0, current_state, u0, next_states = shift_movement(T, t0, current_state, u, next_states, f_np)
+        next_states_pred = prediction_state(x0=current_state, u=u, N=N, T=T)
+        x_c.append(next_states_pred)
+        t0, current_state, u0, next_states = shift_movement(T, t0, current_state, u, next_states_pred, f_np)
         mpciter = mpciter + 1
         xx.append(current_state)
 
