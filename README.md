@@ -13,3 +13,7 @@ This repository is an implementation of the work from Mohamed W. Mehrez. I conve
 2. The file name ended with 'struct' using the casadi.tools API to form the problem.
 3. The file name without special indication indicates the default SX is utilized.
 4. Basically one can also use MX to form the problem. However, with my tests, SX has better performance (in speed)  than MX.
+
+## Summary
+
+The SX based versions have similar performance, and require less computation time compared with opti version, which is based on MX structure. However, different implementation approaches have also different matrix/vector definitions, which one should program it carefully especially by the constraint definition. Opti version has the most intuitional definition which is easy to read and handle.
