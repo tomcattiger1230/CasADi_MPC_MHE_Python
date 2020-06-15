@@ -96,8 +96,8 @@ if __name__ == '__main__':
     while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0  ):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(opt_x0, current_state)
-        opti.set_initial(opt_controls, u0.reshape(N, 2))
-        opti.set_initial(opt_states, next_states.reshape(N+1, 3))
+        opti.set_initial(opt_controls, u0)
+        opti.set_initial(opt_states, next_states)
         t_ = time.time()
         ## solve the problem once again
         sol = opti.solve()

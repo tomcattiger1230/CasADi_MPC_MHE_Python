@@ -5,6 +5,7 @@ import casadi as ca
 import casadi.tools as ca_tools
 
 import numpy as np
+import time
 from draw import Draw_MPC_tracking
 
 def shift_movement(T, t0, x0, u, x_f, f):
@@ -128,7 +129,8 @@ if __name__ == '__main__':
 
     ## start MPC
     mpciter = 0
-    ### inital test
+    start_time = time.time()
+    index_t = []
     while(mpciter-sim_time/T<0.0):
         current_time = mpciter * T # current time
         ## set parameter
@@ -136,9 +138,10 @@ if __name__ == '__main__':
         # print('{0}'.format(next_states))
         # print('{0}'.format(next_states.T.reshape(-1, 1)[:6]))
         init_control = np.concatenate((u0.T.reshape(-1, 1), next_states.T.reshape(-1, 1)))
+        t_ = time.time()
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+        index_t.append(time.time()- t_)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
-        print(estimated_opt)
         u0 = estimated_opt[:int(n_controls*N)].reshape(N, n_controls).T # (n_controls, N)
         x_m = estimated_opt[int(n_controls*N):].reshape(N+1, n_states).T# [n_states, N]
         x_c.append(x_m.T)
@@ -150,5 +153,8 @@ if __name__ == '__main__':
         xx.append(current_state)
         next_trajectories, next_controls = desired_command_and_trajectory(t0, T, current_state, N)
         mpciter = mpciter + 1
+    t_v = np.array(index_t)
+    print(t_v.mean()) 
+    print((time.time() - start_time)/(mpciter))
     print(mpciter)
     draw_result = Draw_MPC_tracking(rob_diam=0.3, init_state=init_state, robot_states=xx )

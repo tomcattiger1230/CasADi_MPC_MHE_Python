@@ -5,6 +5,7 @@ import casadi as ca
 import casadi.tools as ca_tools
 
 import numpy as np
+import time
 from draw import Draw_MPC_tracking
 
 def shift_movement(T, t0, x0, u, x_, f):
@@ -164,26 +165,24 @@ if __name__ == '__main__':
     sim_time = 30.0
     ## start MPC
     mpciter = 0
+    start_time = time.time()
+    index_t = []
     ### inital test
     c_p = current_parameters(0) # references
     init_input = optimizing_target(0)
-    # print(u0.shape) u0 should have (n_controls, N)
     while(mpciter-sim_time/T<0.0):
         current_time = mpciter * T # current time
-        print(mpciter)
         ## obtain the desired trajectory, note that, the input should be (N*, states*), then the output will turn to (states*, N*)
         c_p['X_ref', lambda x:ca.horzcat(*x)] = next_trajectories.T
         c_p['U_ref', lambda x:ca.horzcat(*x)] = next_controls.T
-        print('next_states {0} \n next_trajectories {1}'.format(next_states, next_trajectories))
-        print('next_control {0} \n control_trajectories {1}'.format(ca.reshape(u0, N, 2), next_controls))
         ## set parameter
         init_input['X', lambda x:ca.horzcat(*x)] = next_states.T
         init_input['U', lambda x:ca.horzcat(*x)] = u0
+        t_ = time.time()
         res = solver(x0=init_input, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+        index_t.append(time.time()- t_)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
-        print(estimated_opt)
         u_res, x_m = get_estimated_result(estimated_opt, N) # the result are in form (N*, states)
-        print('control {0}, and trajectory {1}'.format(u_res, x_m))
         x_c.append(x_m)
         u_c.append(u_res[0])
         t_c.append(t0)
@@ -194,4 +193,7 @@ if __name__ == '__main__':
         next_trajectories, next_controls = desired_command_and_trajectory(t0, T, current_state, N)
         mpciter = mpciter + 1
     print(mpciter)
+    t_v = np.array(index_t)
+    print(t_v.mean()) 
+    print((time.time() - start_time)/(mpciter))
     draw_result = Draw_MPC_tracking(rob_diam=0.3, init_state=init_state, robot_states=xx )

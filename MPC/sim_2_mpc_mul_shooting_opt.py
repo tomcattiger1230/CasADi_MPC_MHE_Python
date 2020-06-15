@@ -97,7 +97,7 @@ if __name__ == '__main__':
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(opt_x0, current_state)
         ## set optimizing target withe init guess
-        opti.set_initial(opt_controls, u0.reshape(N, 2))# (N, 2)
+        opti.set_initial(opt_controls, u0)# (N, 2)
         opti.set_initial(opt_states, next_states) # (N+1, 3)
         ## solve the problem once again
         t_ = time.time()
