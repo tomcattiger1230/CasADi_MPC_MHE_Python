@@ -16,21 +16,6 @@ def shift_movement(T, t0, x0, u, x_f, f):
 
     return t, st, u_end, x_f
 
-def prediction_function(T, N):
-    # define predition horizon function
-    states = ca.MX.sym('states', N+1, 3)
-    x0 = ca.MX.sym('x0', 3)
-    u = ca.MX.sym('u', N, 2)
-    states[0, :] = x0
-    for i in range(N):
-        states[i+1, 0] = states[i, 0] + u[i, 0] * np.cos(states[i, 2]) * T
-        states[i+1, 1] = states[i, 1] + u[i, 0] * np.sin(states[i, 2]) * T
-        states[i+1, 2] = states[i, 2] + u[i, 1] * T
-    func = ca.Function('ff', [x0, u], [states], ['init_s', 'controls_horizon'], ['outputs'])
-
-    return func
-
-
 def prediction_state(x0, u, T, N):
     # define predition horizon function
     states_ = np.zeros((N+1, 3))
@@ -56,7 +41,7 @@ if __name__ == '__main__':
     x = opt_states[:, 0]
     y = opt_states[:, 1]
     theta = opt_states[:, 2]
-    # opti.set_initial(opt_states, np.zeros((N+1, 3)))
+    
     # parameters
     opt_x0 = opti.parameter(3)
     opt_xs = opti.parameter(3)
@@ -107,13 +92,16 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
     start_time = time.time()
+    index_t = []
     while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0  ):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(opt_x0, current_state)
         opti.set_initial(opt_controls, u0.reshape(N, 2))
         opti.set_initial(opt_states, next_states.reshape(N+1, 3))
+        t_ = time.time()
         ## solve the problem once again
         sol = opti.solve()
+        index_t.append(time.time()- t_)
         ## obtain the control input
         u = sol.value(opt_controls)
         u_c.append(u[0, :])
@@ -125,7 +113,9 @@ if __name__ == '__main__':
         xx.append(current_state)
 
     ## after loop
-    print((time.time()-start_time)/(mpciter+1))
+    print((time.time()-start_time)/(mpciter))
+    t_v = np.array(index_t)
+    print(t_v.mean()) 
     print(mpciter)
     print('final error {}'.format(np.linalg.norm(final_state-current_state)))
     ## draw function

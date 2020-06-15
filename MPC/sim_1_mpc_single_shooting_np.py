@@ -84,8 +84,9 @@ if __name__ == '__main__':
     ubx = []
     for _ in range(N):
         lbx.append(-v_max)
-        lbx.append(-omega_max)
         ubx.append(v_max)
+    for _ in range(N):
+        lbx.append(-omega_max)
         ubx.append(omega_max)
 
     # Simulation
@@ -102,11 +103,14 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
     start_time = time.time() 
+    index_t = []
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         c_p = np.concatenate((x0, xs))
         init_control = ca.reshape(u0, -1, 1)
+        t_ = time.time()
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+        index_t.append(time.time()- t_)
         u_sol = ca.reshape(res['x'],  N, n_controls) # one can only have this shape of the output
         ff_value = ff(u_sol, c_p) # [n_states, N]
         x_c.append(ff_value)
@@ -116,7 +120,8 @@ if __name__ == '__main__':
         x0 = ca.reshape(x0, -1, 1)
         xx.append(x0.full())
         mpciter = mpciter + 1
-
-    print((time.time() - start_time)/(mpciter+1))
+    t_v = np.array(index_t)
+    print(t_v.mean()) 
+    print((time.time() - start_time)/(mpciter))
 
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx )

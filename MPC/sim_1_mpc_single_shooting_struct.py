@@ -127,12 +127,15 @@ if __name__ == '__main__':
     c_p = current_parameters(0)
     init_control = optimizing_target(0)
     start_time = time.time()
+    index_t = []
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         # p_ = np.concatenate((x0, xs))
         c_p['P'] = np.concatenate((x0, xs))
         init_control['U', lambda x:ca.horzcat(*x)] = u0 #[:, 0:N]
+        t_ = time.time()
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+        index_t.append(time.time()- t_)
         u0 = ca.reshape(res['x'], n_controls, N)
         ff_value = ff(init_control, c_p) # [n_states, N]
         x_c.append(ff_value)
@@ -144,6 +147,8 @@ if __name__ == '__main__':
         x0 = ca.reshape(x0, -1, 1)
         xx.append(x0.full())
         mpciter = mpciter + 1
-    print((time.time() - start_time)/(mpciter+1))
+    t_v = np.array(index_t)
+    print(t_v.mean()) 
+    print((time.time() - start_time)/(mpciter))
 
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx )

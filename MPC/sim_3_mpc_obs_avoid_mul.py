@@ -5,6 +5,7 @@ import casadi as ca
 import casadi.tools as ca_tools
 
 import numpy as np
+import time
 from draw import Draw_MPC_Obstacle
 
 def shift_movement(T, t0, x0, u, x_f, f):
@@ -117,14 +118,17 @@ if __name__ == '__main__':
 
     ## start MPC
     mpciter = 0
-    ### inital test
+    start_time = time.time() 
+    index_t = []
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<50):
         ## set parameter
         c_p = np.concatenate((x0, xs))
         # print('{0}'.format(next_states))
         # print('{0}'.format(next_states.T.reshape(-1, 1)[:6]))
         init_control = np.concatenate((u0.T.reshape(-1, 1), next_states.T.reshape(-1, 1)))
+        t_ = time.time()
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+        index_t.append(time.time()- t_)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
         u0 = estimated_opt[:200].reshape(N, n_controls).T # (n_controls, N)
         x_m = estimated_opt[200:].reshape(N+1, n_states).T# [n_states, N]
@@ -137,4 +141,7 @@ if __name__ == '__main__':
         xx.append(x0)
         mpciter = mpciter + 1
     print(mpciter)
+    t_v = np.array(index_t)
+    print(t_v.mean()) 
+    print((time.time() - start_time)/(mpciter))
     draw_result = Draw_MPC_Obstacle(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx, obstacle=np.array([obs_x, obs_y, obs_diam/2.]), export_fig=False)

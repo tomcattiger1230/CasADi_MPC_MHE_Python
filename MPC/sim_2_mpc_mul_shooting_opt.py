@@ -69,7 +69,6 @@ if __name__ == '__main__':
     #### boundrary and control conditions
     opti.subject_to(opti.bounded(-2.0, x, 2.0))
     opti.subject_to(opti.bounded(-2.0, y, 2.0))
-    opti.subject_to(opti.bounded(-np.inf, theta, np.inf))
     opti.subject_to(opti.bounded(-v_max, v, v_max))
     opti.subject_to(opti.bounded(-omega_max, omega, omega_max))
 
@@ -93,27 +92,31 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
     start_time = time.time()
+    index_t = []
     while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0  ):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(opt_x0, current_state)
         ## set optimizing target withe init guess
-        # print(u0.reshape(N, 2))
         opti.set_initial(opt_controls, u0.reshape(N, 2))# (N, 2)
         opti.set_initial(opt_states, next_states) # (N+1, 3)
         ## solve the problem once again
+        t_ = time.time()
         sol = opti.solve()
+        index_t.append(time.time()- t_)
         ## obtain the control input
         u_res = sol.value(opt_controls)
-        # print(sol.value(states))
         u_c.append(u_res[0, :])
         t_c.append(t0)
-        next_states_pred = prediction_state(x0=current_state, u=u_res, N=N, T=T)
+        next_states_pred = sol.value(opt_states)# prediction_state(x0=current_state, u=u_res, N=N, T=T)
+        # next_states_pred = prediction_state(x0=current_state, u=u_res, N=N, T=T)
         x_c.append(next_states_pred)
         # for next loop
         t0, current_state, u0, next_states = shift_movement(T, t0, current_state, u_res, next_states, f_np)
         mpciter = mpciter + 1
         xx.append(current_state)
-    print((time.time() - start_time)/(mpciter+1))
+    t_v = np.array(index_t)
+    print(t_v.mean()) 
+    print((time.time() - start_time)/(mpciter))
     ## after loop
     print(mpciter)
     print('final error {}'.format(np.linalg.norm(final_state-current_state)))

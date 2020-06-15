@@ -3,7 +3,7 @@
 
 import casadi as ca
 import numpy as np
-
+import time
 from draw import Draw_MPC_Obstacle
 
 def shift_movement(T, t0, x0, u, x_n, f):
@@ -98,19 +98,20 @@ if __name__ == '__main__':
 
     ## start MPC
     mpciter = 0
-
+    start_time = time.time() 
+    index_t = []
     while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(opt_x0, current_state)
         opti.set_initial(opt_controls, u0.reshape(N, 2))# (N, 2)
         opti.set_initial(opt_states, next_states) # (N+1, 3)
         ## solve the problem once again
+        t_ = time.time()
         sol = opti.solve()
+        index_t.append(time.time()- t_)
         ## obtain the control input
         u_res = sol.value(opt_controls)
         x_m = sol.value(opt_states)
-        print(u_res[:3])
-        print(x_m[:3])
         u_c.append(u_res[0, :])
         t_c.append(t0)
         x_c.append(x_m)
@@ -121,6 +122,9 @@ if __name__ == '__main__':
 
     ## after loop
     print(mpciter)
+    t_v = np.array(index_t)
+    print(t_v.mean()) 
+    print((time.time() - start_time)/(mpciter))
     print('final error {}'.format(np.linalg.norm(final_state-current_state)))
     ## draw function
     draw_result = Draw_MPC_Obstacle(rob_diam=0.3, init_state=init_state, target_state=final_state, robot_states=xx, obstacle=np.array([obs_x, obs_y, obs_diam/2.]), export_fig=False)

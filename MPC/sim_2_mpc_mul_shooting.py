@@ -104,12 +104,15 @@ if __name__ == '__main__':
     ## start MPC
     mpciter = 0
     start_time = time.time()
+    index_t = []
     ### inital test
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         c_p = np.concatenate((x0, xs))
         init_control = np.concatenate((u0.T.reshape(-1, 1), next_states.T.reshape(-1, 1)))
+        t_ = time.time()
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+        index_t.append(time.time()- t_)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
         u0 = estimated_opt[:200].reshape(N, n_controls).T # (n_controls, N)
         x_m = estimated_opt[200:].reshape(N+1, n_states).T# [n_states, N]
@@ -121,6 +124,8 @@ if __name__ == '__main__':
         x0 = x0.full()
         xx.append(x0)
         mpciter = mpciter + 1
-
-    print((time.time() - start_time)/(mpciter+1))
+    t_v = np.array(index_t)
+    print(t_v.mean()) 
+    print((time.time() - start_time)/(mpciter))
+    
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx )
