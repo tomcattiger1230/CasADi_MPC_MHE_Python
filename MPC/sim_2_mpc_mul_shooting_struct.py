@@ -5,6 +5,7 @@ import casadi as ca
 import casadi.tools as ca_tools
 
 import numpy as np
+import time
 from draw import Draw_MPC_point_stabilization_v1
 
 def shift_movement(T, t0, x0, u, f):
@@ -131,6 +132,7 @@ if __name__ == '__main__':
     ### inital test
     c_p = current_parameters(0)
     init_control = optimizing_target(0)
+    start_time = time.time()
     # print(u0.shape) u0 should have (n_controls, N)
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
@@ -144,7 +146,7 @@ if __name__ == '__main__':
         u0 = temp_estimated[:, :2].T
         ff_value = temp_estimated[:, 2:].T
         ff_value = np.concatenate((ff_value, estimated_opt[-3:].reshape(3, 1)), axis=1) # add the last estimated result now is n_states * (N+1)
-        print(ff_value.T)
+        # print(ff_value.T)
         x_c.append(ff_value)
         u_c.append(u0[:, 0])
         t_c.append(t0)
@@ -152,5 +154,5 @@ if __name__ == '__main__':
         x0 = ca.reshape(x0, -1, 1)
         xx.append(x0.full())
         mpciter = mpciter + 1
-
+    print((time.time() - start_time)/(mpciter+1))
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx )

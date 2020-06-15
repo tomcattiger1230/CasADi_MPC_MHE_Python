@@ -5,6 +5,7 @@ import casadi as ca
 import casadi.tools as ca_tools
 
 import numpy as np
+import time
 from draw import Draw_MPC_point_stabilization_v1
 
 def shift_movement(T, t0, x0, u, f):
@@ -13,7 +14,7 @@ def shift_movement(T, t0, x0, u, f):
     t = t0 + T
     u_end = ca.horzcat(u[:, 1:], u[:, -1])
 
-    return t, st, u_end
+    return t, st, u_end.T
 
 if __name__ == '__main__':
     T = 0.2 # sampling time [s]
@@ -91,7 +92,7 @@ if __name__ == '__main__':
     t0 = 0.0
     x0 = np.array([0.0, 0.0, 0.0]).reshape(-1, 1)# initial state
     xs = np.array([1.5, 1.5, 0.0]).reshape(-1, 1) # final state
-    u0 = np.array([1,2]*N).reshape(-1, 2).T# np.ones((N, 2)) # controls
+    u0 = np.array([1,2]*N).reshape(-1, 2)# np.ones((N, 2)) # controls
     x_c = [] # contains for the history of the state
     u_c = []
     t_c = [t0] # for the time
@@ -100,26 +101,21 @@ if __name__ == '__main__':
 
     ## start MPC
     mpciter = 0
+    start_time = time.time()
     ### inital test
-    # c_p = P(0)
-    #init_control = U(0)
-    # print(u0.shape) u0 should have (n_controls, N)
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
-        # p_ = np.concatenate((x0, xs))
         c_p = np.concatenate((x0, xs))
-        init_control = ca.reshape(u0.T, -1, 1)
+        init_control = ca.reshape(u0, -1, 1)
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
-        u0 = ca.reshape(res['x'], n_controls, N)
-        ff_value = ff(u0, c_p) # [n_states, N]
+        u_sol = ca.reshape(res['x'], n_controls, N) # one can only have this shape of the output
+        ff_value = ff(u_sol, c_p) # [n_states, N]
         x_c.append(ff_value)
-        u_c.append(u0[:, 0])
+        u_c.append(u_sol[:, 0])
         t_c.append(t0)
-        t0, x0, u0 = shift_movement(T, t0, x0, u0, f)
-        # x0 = x0.toarray().reshape(-1, 1)
-        # u0 = np.array([1,2]*N).reshape(-1, 2).T# np.ones((N, 2)) # controls
+        t0, x0, u0 = shift_movement(T, t0, x0, u_sol, f)
         x0 = ca.reshape(x0, -1, 1)
         xx.append(x0.full())
         mpciter = mpciter + 1
-
+    print((time.time() - start_time)/(mpciter+1))
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx )

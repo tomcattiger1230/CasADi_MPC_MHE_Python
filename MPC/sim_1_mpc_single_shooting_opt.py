@@ -3,6 +3,7 @@
 
 import casadi as ca
 import numpy as np
+import time
 
 from draw import Draw_MPC_point_stabilization_v1
 
@@ -105,11 +106,10 @@ if __name__ == '__main__':
 
     ## start MPC
     mpciter = 0
-
+    start_time = time.time()
     while(np.linalg.norm(current_state-final_state)>1e-2 and mpciter-sim_time/T<0.0  ):
         ## set parameter, here only update initial state of x (x0)
         opti.set_value(opt_x0, current_state)
-        print((next_states))
         opti.set_initial(opt_controls, u0.reshape(N, 2))
         opti.set_initial(opt_states, next_states.reshape(N+1, 3))
         ## solve the problem once again
@@ -125,6 +125,7 @@ if __name__ == '__main__':
         xx.append(current_state)
 
     ## after loop
+    print((time.time()-start_time)/(mpciter+1))
     print(mpciter)
     print('final error {}'.format(np.linalg.norm(final_state-current_state)))
     ## draw function
