@@ -84,8 +84,9 @@ if __name__ == '__main__':
     ubx = []
     for _ in range(N):
         lbx.append(-v_max)
-        lbx.append(-omega_max)
         ubx.append(v_max)
+    for _ in range(N):
+        lbx.append(-omega_max)
         ubx.append(omega_max)
 
     # Simulation
@@ -117,11 +118,11 @@ if __name__ == '__main__':
         u_c.append(u_sol[:, 0])
         t_c.append(t0)
         t0, x0, u0 = shift_movement(T, t0, x0, u_sol, f)
-        
+
         x0 = ca.reshape(x0, -1, 1)
         xx.append(x0.full())
         mpciter = mpciter + 1
     t_v = np.array(index_t)
-    print(t_v.mean()) 
+    print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx )

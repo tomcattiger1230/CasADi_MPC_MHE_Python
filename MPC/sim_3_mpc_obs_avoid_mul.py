@@ -87,19 +87,22 @@ if __name__ == '__main__':
         ubg.append(0.0)
         ubg.append(0.0)
     for _ in range(N+1):
-        lbg.append(0.3) 
+        lbg.append(0.3)
         ubg.append(np.inf)
     for _ in range(N):
         lbx.append(-v_max)
-        lbx.append(-omega_max)
         ubx.append(v_max)
+    for _ in range(N):
+        lbx.append(-omega_max)
         ubx.append(omega_max)
     for _ in range(N+1): # note that this is different with the method using structure
         lbx.append(-2.0)
+        ubx.append(2.0)
+    for _ in range(N+1):
         lbx.append(-2.0)
+        ubx.append(2.0)
+    for _ in range(N+1):
         lbx.append(-np.inf)
-        ubx.append(2.0)
-        ubx.append(2.0)
         ubx.append(np.inf)
 
     # Simulation
@@ -118,7 +121,7 @@ if __name__ == '__main__':
 
     ## start MPC
     mpciter = 0
-    start_time = time.time() 
+    start_time = time.time()
     index_t = []
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 and mpciter<50):
         ## set parameter
@@ -142,6 +145,6 @@ if __name__ == '__main__':
         mpciter = mpciter + 1
     print(mpciter)
     t_v = np.array(index_t)
-    print(t_v.mean()) 
+    print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
     draw_result = Draw_MPC_Obstacle(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx, obstacle=np.array([obs_x, obs_y, obs_diam/2.]), export_fig=False)

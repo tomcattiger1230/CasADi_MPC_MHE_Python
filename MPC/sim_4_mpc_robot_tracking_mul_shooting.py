@@ -41,7 +41,7 @@ def desired_command_and_trajectory(t, T, x0_, N_):
     x_ = np.array(x_).reshape(N_+1, -1)
     u_ = np.array(u_).reshape(N, -1)
     return x_, u_
-    
+
 if __name__ == '__main__':
     T = 0.5 # sampling time [s]
     N = 8 # prediction horizon
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         obj = obj + ca.mtimes([state_error_.T, Q, state_error_]) + ca.mtimes([control_error_.T, R, control_error_])
         x_next_ = f(X[:, i], U[:, i])*T +X[:, i]
         g.append(X[:, i+1]-x_next_)
-    
+
     opt_variables = ca.vertcat( ca.reshape(U, -1, 1), ca.reshape(X, -1, 1))
     opt_params = ca.vertcat(ca.reshape(U_ref, -1, 1), ca.reshape(X_ref, -1, 1))
 
@@ -106,13 +106,12 @@ if __name__ == '__main__':
         ubx.append(v_max)
         ubx.append(omega_max)
     for _ in range(N+1): # note that this is different with the method using structure
-        lbx.append(-20.0)
+        lbx.append(-2.0)
         lbx.append(-2.0)
         lbx.append(-np.inf)
-        ubx.append(20.0)
+        ubx.append(2.0)
         ubx.append(2.0)
         ubx.append(np.inf)
-
     # Simulation
     t0 = 0.0
     init_state = np.array([0.0, 0.0, 0.0]).reshape(-1, 1)# initial state
@@ -154,7 +153,7 @@ if __name__ == '__main__':
         next_trajectories, next_controls = desired_command_and_trajectory(t0, T, current_state, N)
         mpciter = mpciter + 1
     t_v = np.array(index_t)
-    print(t_v.mean()) 
+    print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
     print(mpciter)
     draw_result = Draw_MPC_tracking(rob_diam=0.3, init_state=init_state, robot_states=xx )
