@@ -75,6 +75,7 @@ if __name__ == '__main__':
     ubg = 0.0
     lbx = []
     ubx = []
+    # different definition series for constraints
     for _ in range(N):
         lbx.append(-v_max)
         ubx.append(v_max)
@@ -130,7 +131,7 @@ if __name__ == '__main__':
         xx.append(x0)
         mpciter = mpciter + 1
     t_v = np.array(index_t)
-    print(t_v.mean()) 
+    print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
-    
+
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx )

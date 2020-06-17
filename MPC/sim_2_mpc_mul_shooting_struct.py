@@ -76,7 +76,7 @@ if __name__ == '__main__':
     obj = 0 #### cost
     #### constrains
     g = [] # equal constrains
-    g.append(X[0]-P[:3]) # initial condition constraints 
+    g.append(X[0]-P[:3]) # initial condition constraints
     for i in range(N):
         obj = obj + ca.mtimes([(X[i]-P[3:]).T, Q, X[i]-P[3:]]) + ca.mtimes([U[i].T, R, U[i]])
         x_next_ = f(X[i], U[i])*T + X[i]
@@ -96,16 +96,18 @@ if __name__ == '__main__':
 
     ## add constraints to control and statesn notice that for the N+1 th state
     for _ in range(N):
-        lbx.append(-v_max)
-        lbx.append(-omega_max)
-        ubx.append(v_max)
-        ubx.append(omega_max)
-        lbx.append(-2.0)
-        lbx.append(-2.0)
-        lbx.append(-np.inf)
-        ubx.append(2.0)
-        ubx.append(2.0)
-        ubx.append(np.inf)
+        lbx = lbx + [-v_max, -omega_max, -2.0, -2.0, -np.inf]
+        ubx = ubx + [v_max, omega_max, 2.0, 2.0, np.inf]
+        # lbx.append(-v_max)
+        # lbx.append(-omega_max)
+        # ubx.append(v_max)
+        # ubx.append(omega_max)
+        # lbx.append(-2.0)
+        # lbx.append(-2.0)
+        # lbx.append(-np.inf)
+        # ubx.append(2.0)
+        # ubx.append(2.0)
+        # ubx.append(np.inf)
     # for the N+1 state
     lbx.append(-2.0)
     lbx.append(-2.0)
@@ -138,7 +140,7 @@ if __name__ == '__main__':
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         c_p['P'] = np.concatenate((x0, xs))
-        init_control['X', lambda x:ca.horzcat(*x)] = ff_value 
+        init_control['X', lambda x:ca.horzcat(*x)] = ff_value
         init_control['U', lambda x:ca.horzcat(*x)] = u0[:, 0:N]
         t_ = time.time()
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
@@ -158,6 +160,6 @@ if __name__ == '__main__':
         xx.append(x0.full())
         mpciter = mpciter + 1
     t_v = np.array(index_t)
-    print(t_v.mean()) 
+    print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx )

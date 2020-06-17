@@ -64,6 +64,7 @@ if __name__ == '__main__':
         g.append(X[:, i+1]-x_next_)
 
     opt_variables = ca.vertcat( ca.reshape(U, -1, 1), ca.reshape(X, -1, 1))
+
     nlp_prob = {'f': obj, 'x': opt_variables, 'p':P, 'g':ca.vertcat(*g)}
     opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6}
 
@@ -75,18 +76,15 @@ if __name__ == '__main__':
     ubx = []
     for _ in range(N):
         lbx.append(-v_max)
-        ubx.append(v_max)
-    for _ in range(N):
         lbx.append(-omega_max)
+        ubx.append(v_max)
         ubx.append(omega_max)
     for _ in range(N+1): # note that this is different with the method using structure
         lbx.append(-2.0)
-        ubx.append(2.0)
-    for _ in range(N+1):
         lbx.append(-2.0)
-        ubx.append(2.0)
-    for _ in range(N+1):
         lbx.append(-np.inf)
+        ubx.append(2.0)
+        ubx.append(2.0)
         ubx.append(np.inf)
 
     # Simulation
