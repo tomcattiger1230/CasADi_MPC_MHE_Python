@@ -145,7 +145,7 @@ if __name__ == '__main__':
     ## after loop
     print(mpciter)
     t_v = np.array(index_t)
-    print(t_v.mean()) 
+    print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
     ## draw function
     draw_result = Draw_MPC_tracking(rob_diam=0.3, init_state=init_state, robot_states=xx )
