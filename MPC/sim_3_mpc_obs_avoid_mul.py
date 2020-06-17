@@ -91,18 +91,15 @@ if __name__ == '__main__':
         ubg.append(np.inf)
     for _ in range(N):
         lbx.append(-v_max)
-        ubx.append(v_max)
-    for _ in range(N):
         lbx.append(-omega_max)
+        ubx.append(v_max)
         ubx.append(omega_max)
     for _ in range(N+1): # note that this is different with the method using structure
         lbx.append(-2.0)
-        ubx.append(2.0)
-    for _ in range(N+1):
         lbx.append(-2.0)
-        ubx.append(2.0)
-    for _ in range(N+1):
         lbx.append(-np.inf)
+        ubx.append(2.0)
+        ubx.append(2.0)
         ubx.append(np.inf)
 
     # Simulation

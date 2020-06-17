@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
     ## start MPC
     mpciter = 0
-    start_time = time.time() 
+    start_time = time.time()
     index_t = []
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
@@ -121,7 +121,7 @@ if __name__ == '__main__':
         xx.append(x0.full())
         mpciter = mpciter + 1
     t_v = np.array(index_t)
-    print(t_v.mean()) 
+    print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
 
     draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx )

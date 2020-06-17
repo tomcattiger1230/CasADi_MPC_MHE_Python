@@ -106,12 +106,13 @@ if __name__ == '__main__':
         ubx.append(v_max)
         ubx.append(omega_max)
     for _ in range(N+1): # note that this is different with the method using structure
-        lbx.append(-2.0)
+        lbx.append(-20.0)
         lbx.append(-2.0)
         lbx.append(-np.inf)
-        ubx.append(2.0)
+        ubx.append(20.0)
         ubx.append(2.0)
         ubx.append(np.inf)
+
     # Simulation
     t0 = 0.0
     init_state = np.array([0.0, 0.0, 0.0]).reshape(-1, 1)# initial state
