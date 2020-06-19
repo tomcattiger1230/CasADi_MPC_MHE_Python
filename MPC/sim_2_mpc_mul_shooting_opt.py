@@ -103,6 +103,7 @@ if __name__ == '__main__':
         t_ = time.time()
         sol = opti.solve()
         index_t.append(time.time()- t_)
+        ## opti.set_initial(opti.lam_g, sol.value(opti.lam_g))
         ## obtain the control input
         u_res = sol.value(opt_controls)
         u_c.append(u_res[0, :])
@@ -115,7 +116,7 @@ if __name__ == '__main__':
         mpciter = mpciter + 1
         xx.append(current_state)
     t_v = np.array(index_t)
-    print(t_v.mean()) 
+    print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
     ## after loop
     print(mpciter)
