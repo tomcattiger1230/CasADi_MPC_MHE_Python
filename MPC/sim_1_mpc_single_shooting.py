@@ -44,9 +44,7 @@ if __name__ == '__main__':
 
     ## for MPC
     U = ca.SX.sym('U', n_controls, N)
-
     X = ca.SX.sym('X', n_states, N+1)
-
     P = ca.SX.sym('P', n_states+n_states)
 
 
@@ -78,6 +76,8 @@ if __name__ == '__main__':
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
+
+    # Simulation
     lbg = -2.0
     ubg = 2.0
     lbx = []
@@ -85,18 +85,15 @@ if __name__ == '__main__':
     for _ in range(N):
         lbx.append(-v_max)
         ubx.append(v_max)
-    for _ in range(N):
         lbx.append(-omega_max)
         ubx.append(omega_max)
-
-    # Simulation
     t0 = 0.0
     x0 = np.array([0.0, 0.0, 0.0]).reshape(-1, 1)# initial state
     xs = np.array([1.5, 1.5, 0.0]).reshape(-1, 1) # final state
-    u0 = np.array([1,2]*N).reshape(-1, 2)# np.ones((N, 2)) # controls
+    u0 = np.array([0.0, 0.0]*N).reshape(-1, 2)# np.ones((N, 2)) # controls
     x_c = [] # contains for the history of the state
     u_c = []
-    t_c = [t0] # for the time
+    t_c = [] # for the time
     xx = []
     sim_time = 20.0
 
@@ -113,7 +110,7 @@ if __name__ == '__main__':
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         index_t.append(time.time()- t_)
         u_sol = ca.reshape(res['x'], n_controls, N) # one can only have this shape of the output
-        ff_value = ff(u_sol, c_p) # [n_states, N]
+        ff_value = ff(u_sol, c_p) # [n_states, N+1]
         x_c.append(ff_value)
         u_c.append(u_sol[:, 0])
         t_c.append(t0)
@@ -125,4 +122,4 @@ if __name__ == '__main__':
     t_v = np.array(index_t)
     print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
-    draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx )
+    draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx, export_fig=True)
