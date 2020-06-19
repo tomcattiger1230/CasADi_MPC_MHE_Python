@@ -64,7 +64,7 @@ if __name__ == '__main__':
     obj = 0 #### cost
     for i in range(N):
         # obj = obj + ca.mtimes([(X[:, i]-P[3:]).T, Q, X[:, i]-P[3:]]) + ca.mtimes([U[:, i].T, R, U[:, i]])
-        # new type to calculate the matrix times
+        # new type to calculate the matrix multiplication
         obj = obj + (X[:, i]-P[3:]).T @ Q @ (X[:, i]-P[3:]) + U[:, i].T @ R @ U[:, i]
 
     #### constrains
