@@ -89,32 +89,45 @@ if __name__ == '__main__':
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
+    # lbg = 0.0
+    # ubg = 0.0
+    # lbx = []
+    # ubx = []
+
+    # ## add constraints to control and statesn notice that for the N+1 th state
+    # for _ in range(N):
+    #     lbx = lbx + [-v_max, -omega_max, -2.0, -2.0, -np.inf]
+    #     ubx = ubx + [v_max, omega_max, 2.0, 2.0, np.inf]
+    #     # lbx.append(-v_max)
+    #     # lbx.append(-omega_max)
+    #     # ubx.append(v_max)
+    #     # ubx.append(omega_max)
+    #     # lbx.append(-2.0)
+    #     # lbx.append(-2.0)
+    #     # lbx.append(-np.inf)
+    #     # ubx.append(2.0)
+    #     # ubx.append(2.0)
+    #     # ubx.append(np.inf)
+    # # for the N+1 state
+    # lbx.append(-2.0)
+    # lbx.append(-2.0)
+    # lbx.append(-np.inf)
+    # ubx.append(2.0)
+    # ubx.append(2.0)
+    # ubx.append(np.inf)
+
     lbg = 0.0
     ubg = 0.0
-    lbx = []
-    ubx = []
-
-    ## add constraints to control and statesn notice that for the N+1 th state
-    for _ in range(N):
-        lbx = lbx + [-v_max, -omega_max, -2.0, -2.0, -np.inf]
-        ubx = ubx + [v_max, omega_max, 2.0, 2.0, np.inf]
-        # lbx.append(-v_max)
-        # lbx.append(-omega_max)
-        # ubx.append(v_max)
-        # ubx.append(omega_max)
-        # lbx.append(-2.0)
-        # lbx.append(-2.0)
-        # lbx.append(-np.inf)
-        # ubx.append(2.0)
-        # ubx.append(2.0)
-        # ubx.append(np.inf)
-    # for the N+1 state
-    lbx.append(-2.0)
-    lbx.append(-2.0)
-    lbx.append(-np.inf)
-    ubx.append(2.0)
-    ubx.append(2.0)
-    ubx.append(np.inf)
+    lbx = optimizing_target(-ca.inf)
+    ubx = optimizing_target(ca.inf)
+    lbx['U', :, 'v'] = -v_max
+    lbx['U', :, 'omega'] = -omega_max
+    lbx['X', :, 'x'] = -2.0
+    lbx['X', :, 'y'] = -2.0
+    ubx['U', :, 'v'] = v_max
+    ubx['U', :, 'omega'] = omega_max
+    ubx['X', :, 'x'] = 2.0
+    ubx['X', :, 'y'] = 2.0
 
     # Simulation
     t0 = 0.0
