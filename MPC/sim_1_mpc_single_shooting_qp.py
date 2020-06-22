@@ -74,9 +74,9 @@ if __name__ == '__main__':
         g.append(X[1, i])
 
     qp_prob = {'f': obj, 'x': ca.reshape(U, -1, 1), 'p':P, 'g':ca.vcat(g)} # here also can use ca.vcat(g) or ca.vertcat(*g)
-    opts_setting = { 'printlevel':0, 'print_time':0, }
+    opts_setting = {'print_time':0, 'sqpmethod.max_iter':100}
 
-    solver = ca.qpsol('solver', 'qpoases', qp_prob, )
+    solver = ca.nlpsol('solver', 'qpsol', qp_prob, opts_setting)
 
 
     # Simulation

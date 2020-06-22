@@ -74,7 +74,7 @@ if __name__ == '__main__':
         g.append(X[1, i])
 
     nlp_prob = {'f': obj, 'x': ca.reshape(U, -1, 1), 'p':P, 'g':ca.vcat(g)} # here also can use ca.vcat(g) or ca.vertcat(*g)
-    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6, 'jit':False}
+    opts_setting = {'ipopt.max_iter':100, 'ipopt.print_level':0, 'print_time':0, 'ipopt.acceptable_tol':1e-8, 'ipopt.acceptable_obj_change_tol':1e-6, }
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
 
@@ -103,13 +103,20 @@ if __name__ == '__main__':
     mpciter = 0
     start_time = time.time()
     index_t = []
+    c_p = np.concatenate((x0, xs))
+    init_control = ca.reshape(u0, -1, 1)
+    res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+    lam_x_ = res['lam_x']
     ### inital test
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         c_p = np.concatenate((x0, xs))
         init_control = ca.reshape(u0, -1, 1)
         t_ = time.time()
-        res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+        res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx, lam_x0=lam_x_)
+        lam_x_ = res['lam_x']
+        # res = solver(x0=init_control, p=c_p,)
+        # print(res['g'])
         index_t.append(time.time()- t_)
         u_sol = ca.reshape(res['x'], n_controls, N) # one can only have this shape of the output
         ff_value = ff(u_sol, c_p) # [n_states, N+1]
@@ -124,4 +131,4 @@ if __name__ == '__main__':
     t_v = np.array(index_t)
     print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
-    draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx, export_fig=True)
+    draw_result = Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0.full(), target_state=xs, robot_states=xx, export_fig=False)
