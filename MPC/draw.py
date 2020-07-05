@@ -26,7 +26,7 @@ class Draw_MPC_point_stabilization_v1(object):
 
         plt.grid('--')
         if export_fig:
-            self.ani.save('v1.gif', writer='imagemagick', fps=100)
+            self.ani.save('./v1.gif', writer='imagemagick', fps=100)
         plt.show()
 
     def animation_init(self):
