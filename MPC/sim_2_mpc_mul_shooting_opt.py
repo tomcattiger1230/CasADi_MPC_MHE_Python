@@ -46,7 +46,7 @@ if __name__ == '__main__':
     opt_x0 = opti.parameter(3)
     opt_xs = opti.parameter(3)
     # create model
-    f = lambda x_, u_: ca.vertcat(*[u_[0]*np.cos(x_[2]), u_[0]*np.sin(x_[2]), u_[1]])
+    f = lambda x_, u_: ca.vertcat(*[u_[0]*ca.cos(x_[2]), u_[0]*ca.sin(x_[2]), u_[1]])
     f_np = lambda x_, u_: np.array([u_[0]*np.cos(x_[2]), u_[0]*np.sin(x_[2]), u_[1]])
 
     ## init_condition

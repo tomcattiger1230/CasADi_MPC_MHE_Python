@@ -37,7 +37,7 @@ if __name__ == '__main__':
     n_controls = controls.size()[0]
 
     ## rhs
-    rhs = ca.horzcat(v*np.cos(theta), v*np.sin(theta))
+    rhs = ca.horzcat(v*ca.cos(theta), v*ca.sin(theta))
     rhs = ca.horzcat(rhs, omega)
 
     ## function

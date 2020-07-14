@@ -21,8 +21,8 @@ def prediction_state(x0, u, T, N):
     states_ = np.zeros((N+1, 3))
     states_[0, :] = x0
     for i in range(N):
-        states_[i+1, 0] = states_[i, 0] + u[i, 0] * np.cos(states_[i, 2]) * T
-        states_[i+1, 1] = states_[i, 1] + u[i, 0] * np.sin(states_[i, 2]) * T
+        states_[i+1, 0] = states_[i, 0] + u[i, 0] * ca.cos(states_[i, 2]) * T
+        states_[i+1, 1] = states_[i, 1] + u[i, 0] * ca.sin(states_[i, 2]) * T
         states_[i+1, 2] = states_[i, 2] + u[i, 1] * T
     return states_
 
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     opt_x0 = opti.parameter(3)
     opt_xs = opti.parameter(3)
     # create model
-    f = lambda x_, u_: ca.vertcat(*[u_[0]*np.cos(x_[2]), u_[0]*np.sin(x_[2]), u_[1]])
+    f = lambda x_, u_: ca.vertcat(*[u_[0]*ca.cos(x_[2]), u_[0]*ca.sin(x_[2]), u_[1]])
     f_np = lambda x_, u_: np.array([u_[0]*np.cos(x_[2]), u_[0]*np.sin(x_[2]), u_[1]])
 
     ## init_condition
