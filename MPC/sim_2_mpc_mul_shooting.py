@@ -38,7 +38,7 @@ if __name__ == '__main__':
     n_controls = controls.size()[0]
 
     ## rhs
-    rhs = ca.vertcat(v*np.cos(theta), v*np.sin(theta))
+    rhs = ca.vertcat(v*ca.cos(theta), v*ca.sin(theta))
     rhs = ca.vertcat(rhs, omega)
 
     ## function

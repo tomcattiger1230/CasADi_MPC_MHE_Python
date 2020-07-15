@@ -80,8 +80,8 @@ if __name__ == '__main__':
 
     ## rhs
     rhs = ca_tools.struct_SX(states)
-    rhs['x'] = v*np.cos(theta)
-    rhs['y'] = v*np.sin(theta)
+    rhs['x'] = v*ca.cos(theta)
+    rhs['y'] = v*ca.sin(theta)
     rhs['theta'] = omega
 
     ## function
