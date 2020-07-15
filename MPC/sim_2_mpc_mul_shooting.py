@@ -29,6 +29,7 @@ if __name__ == '__main__':
     theta = ca.SX.sym('theta')
     states = ca.vertcat(x, y)
     states = ca.vertcat(states, theta)
+    # states = ca.vcat([x, y, theta])
     n_states = states.size()[0]
 
     v = ca.SX.sym('v')
