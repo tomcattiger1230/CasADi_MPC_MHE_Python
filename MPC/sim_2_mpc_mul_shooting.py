@@ -12,8 +12,11 @@ def shift_movement(T, t0, x0, u, x_f, f):
     f_value = f(x0, u[0, :])
     st = x0 + T*f_value.full()
     t = t0 + T
-    u_end = np.concatenate((u[:, 1:], u[:, -1:]), axis=1)
-    x_f = np.concatenate((x_f[:, 1:], x_f[:, -1:]), axis=1)
+    # print(u[:,0])
+    # u_end = np.concatenate((u[:, 1:], u[:, -1:]), axis=1)
+    u_end = np.concatenate((u[1:], u[-1:]))
+    # x_f = np.concatenate((x_f[:, 1:], x_f[:, -1:]), axis=1)
+    x_f = np.concatenate((x_f[1:], x_f[-1:]), axis=0)
 
     return t, st, u_end, x_f
 
@@ -110,6 +113,7 @@ if __name__ == '__main__':
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         c_p = np.concatenate((x0, xs))
+        print(u0.reshape(-1, 1))
         init_control = np.concatenate((u0.reshape(-1, 1), next_states.reshape(-1, 1)))
         t_ = time.time()
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
@@ -124,6 +128,7 @@ if __name__ == '__main__':
         x0 = ca.reshape(x0, -1, 1)
         x0 = x0.full()
         xx.append(x0)
+        # print(u0[0])
         mpciter = mpciter + 1
     t_v = np.array(index_t)
     print(t_v.mean())
