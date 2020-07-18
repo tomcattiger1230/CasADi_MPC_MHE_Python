@@ -19,7 +19,7 @@ def shift_movement(T, t0, x0, u, x_f, f):
 
 if __name__ == '__main__':
     T = 0.2 # sampling time [s]
-    N = 100 # prediction horizon
+    N = 20 # prediction horizon
     rob_diam = 0.3 # [m]
     v_max = 0.6
     omega_max = np.pi/4.0
@@ -115,8 +115,9 @@ if __name__ == '__main__':
         res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         index_t.append(time.time()- t_)
         estimated_opt = res['x'].full() # the feedback is in the series [u0, x0, u1, x1, ...]
-        u0 = estimated_opt[:200].reshape(N, n_controls) # (N, n_controls)
-        x_m = estimated_opt[200:].reshape(N+1, n_states) # (N+1, n_states)
+        u0 = estimated_opt[:N*n_controls].reshape(N, n_controls) # (N, n_controls)
+        x_m = estimated_opt[N*n_controls:].reshape(N+1, n_states) # (N+1, n_states)
+        print('u0 {}'.format(u0))
         x_c.append(x_m.T)
         u_c.append(u0[0, :])
         t_c.append(t0)
@@ -125,6 +126,8 @@ if __name__ == '__main__':
         x0 = x0.full()
         xx.append(x0)
         mpciter = mpciter + 1
+        
+        print(x_m)
     t_v = np.array(index_t)
     print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
