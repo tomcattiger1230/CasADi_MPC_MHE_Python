@@ -144,4 +144,4 @@ if __name__ == '__main__':
     t_v = np.array(index_t)
     print(t_v.mean())
     print((time.time() - start_time)/(mpciter))
-    draw_result = Draw_MPC_Obstacle(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx, obstacle=np.array([obs_x, obs_y, obs_diam/2.]), export_fig=False)
+    draw_result = Draw_MPC_Obstacle(rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx, obstacle=np.array([obs_x, obs_y, obs_diam/2.]), export_fig=True)
