@@ -118,13 +118,7 @@ if __name__ == '__main__':
     while(np.linalg.norm(x0-xs) > 1e-2 and mpciter-sim_time/T < 0.0):
         # set parameter
         c_p = np.concatenate((x0, xs))
-<<<<<<< HEAD
-        init_control = np.concatenate(
-            (u0.reshape(-1, 1), next_states.reshape(-1, 1)))
-=======
-        print(u0.reshape(-1, 1))
         init_control = np.concatenate((u0.reshape(-1, 1), next_states.reshape(-1, 1)))
->>>>>>> 9aceb5eb392bf794db969f91aed49bc9e6ef4062
         t_ = time.time()
         res = solver(x0=init_control, p=c_p, lbg=lbg,
                      lbx=lbx, ubg=ubg, ubx=ubx)
