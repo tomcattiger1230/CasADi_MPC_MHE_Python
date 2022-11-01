@@ -77,6 +77,7 @@ if __name__ == '__main__':
                     'ipopt.acceptable_tol': 1e-8, 'ipopt.acceptable_obj_change_tol': 1e-6}
 
     solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts_setting)
+    # solver.generate_dependencies("mpc_v1.c")
 
     lbg = 0.0
     ubg = 0.0
@@ -127,6 +128,7 @@ if __name__ == '__main__':
         estimated_opt = res['x'].full()
         u0 = estimated_opt[:200].reshape(N, n_controls)  # (N, n_controls)
         x_m = estimated_opt[200:].reshape(N+1, n_states)  # (N+1, n_states)
+        print(u0)
         x_c.append(x_m.T)
         u_c.append(u0[0, :])
         t_c.append(t0)
