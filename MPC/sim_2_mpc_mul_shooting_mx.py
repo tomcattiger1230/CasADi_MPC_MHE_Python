@@ -105,7 +105,7 @@ if __name__ == '__main__':
     mpciter = 0
     start_time = time.time()
     index_t = []
-    ### inital test
+    ### initial test
     while(np.linalg.norm(x0-xs)>1e-2 and mpciter-sim_time/T<0.0 ):
         ## set parameter
         c_p = np.concatenate((x0, xs))
