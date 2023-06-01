@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as mpatches
-
+import matplotlib as mpl
 
 class Draw_MPC_point_stabilization_v1(object):
     def __init__(self, robot_states: list, init_state: np.array, target_state: np.array, rob_diam=0.3,
@@ -154,5 +154,48 @@ class Draw_MPC_tracking(object):
         self.ax.add_patch(self.robot_arr)
         return self.robot_arr, self.robot_body
 
+
 class Draw_FolkLift(object):
-    pass
+    def __init__(self, robot_states: list, initial_state: np.array, export_fig=False):
+        self.init_state = initial_state
+        self.robot_state_list = robot_states
+        self.fig = plt.figure()
+        self.ax = plt.axes(xlim=(-1.0, 8.0), ylim=(-0.5, 8.0))
+
+        self.animation_init()
+
+        self.ani = animation.FuncAnimation(self.fig, self.animation_loop, range(len(self.robot_state_list)),
+                                                   init_func=self.animation_init, interval=100, repeat=False)
+        if export_fig:
+            pass
+        plt.show()
+
+    def animation_init(self, ):
+        x_, y_, angle_ = self.init_state[:3]
+        tr = mpl.transforms.Affine2D().rotate_deg_around(x_, y_, angle_)
+        t = tr + self.ax.transData
+        self.robot_arr = mpatches.Rectangle((x_ - 0.12, y_ - 0.08),
+                                             0.24,
+                                             0.16,
+                                             transform=t,
+                                             color='b',
+                                             alpha=0.8,
+                                             label='DIANA')
+        self.ax.add_patch(self.robot_arr)
+        return self.robot_arr
+
+    def animation_loop(self, indx):
+        x_, y_, angle_ = self.robot_state_list[indx][:3]
+        angle_ = angle_ * 180 / np.pi
+        tr = mpl.transforms.Affine2D().rotate_deg_around(x_, y_, angle_)
+        t = tr + self.ax.transData
+        self.robot_arr.remove()
+        self.robot_arr = mpatches.Rectangle((x_ - 0.12, y_ - 0.08),
+                                             0.24,
+                                             0.16,
+                                             transform=t,
+                                             color='b',
+                                             alpha=0.8,
+                                             label='DIANA')
+        self.ax.add_patch(self.robot_arr)
+        return self.robot_arr

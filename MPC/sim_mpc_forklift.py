@@ -70,11 +70,11 @@ if __name__ == "__main__":
         [
             [5.0, 0.0, 0.0, 0.0],
             [0.0, 5.0, 0.0, 0.0],
-            [0.0, 0.0, 0.3, 0.0],
+            [0.0, 0.0, 2., 0.0],
             [0.0, 0.0, 0.0, 0.1],
         ]
     )
-    R = np.array([[0.5, 0.0], [0.0, 0.05]])
+    R = np.array([[0.5, 0.0], [0.0, .4]])
     # cost function
     obj = 0  # cost
     g = []  # equal constrains
@@ -118,8 +118,8 @@ if __name__ == "__main__":
         lbx.append(-16.0)
         lbx.append(-np.pi)
         lbx.append(-np.pi / 2.0)
-        ubx.append(16.0)
-        ubx.append(16.0)
+        ubx.append(7.01)
+        ubx.append(7.01)
         ubx.append(np.pi)
         ubx.append(np.pi / 2.0)
 
@@ -135,6 +135,7 @@ if __name__ == "__main__":
     state_results = []
     control_results = []
     time_step_list = []
+    final_state_results = []
     mpc_iter = 0
     while np.linalg.norm(x_target - x_init) > 1e-3 and mpc_iter < 100:
         # parameters
@@ -153,8 +154,12 @@ if __name__ == "__main__":
         x_guess = estimated_result[n_controls * N :].reshape(N + 1, n_states).T
         # print(x_guess.T)
         state_results.append(x_guess.T)
+        final_state_results.append(x_guess.T[0])
         control_results.append(u_guess[:, 0])
         time_step_list.append(t0)
-        t0, x_current, u_guess, x_guess = shift_movement(T, t0, x_current, u_guess, x_guess, f)
-        print(x_current)
+        t0, x_current, u_guess, x_guess = shift_movement(
+            T, t0, x_current, u_guess, x_guess, f
+        )
         mpc_iter += 1
+
+    Draw_FolkLift(final_state_results, x_init, False)
