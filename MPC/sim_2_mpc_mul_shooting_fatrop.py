@@ -19,6 +19,15 @@ def shift_movement(T, t0, x0, u, x_f, f):
     return t, st, u_end, x_f
 
 
+def init_guess_array(init_x: np.array, init_u: np.array, N: int):
+    x_guess = []
+    for i in range(N + 1):
+        x_guess.append(ca.vcat(init_x[i]))
+        if i < N:
+            x_guess.append(ca.vcat(init_u[i]))
+    return x_guess
+
+
 if __name__ == "__main__":
     T = 0.2  # sampling time [s]
     N = 100  # prediction horizon
@@ -31,98 +40,99 @@ if __name__ == "__main__":
     theta = ca.MX.sym("theta")
     states = ca.vertcat(x, y)
     states = ca.vertcat(states, theta)
-    n_states = states.size()[0]
+    n_states = states.numel()
 
     v = ca.MX.sym("v")
     omega = ca.MX.sym("omega")
     controls = ca.vertcat(v, omega)
-    n_controls = controls.size()[0]
+    n_controls = controls.numel()
 
     # rhs
     rhs = ca.vertcat(v * ca.cos(theta), v * ca.sin(theta))
     rhs = ca.vertcat(rhs, omega)
 
-    # discreteize system
-    # dt = ca.MX.sym("dt")
-    sys_dyn = {}
-    sys_dyn["x"] = states
-    sys_dyn["u"] = controls
-    # sys_dyn["p"] = dt
-    sys_dyn["ode"] = rhs * T
-    print(rhs * T)
-
-    intg = ca.integrator(
-        "intg", "rk", sys_dyn, 0, 1, {"simplify": True, "number_of_finite_elements": 3}
-    )
-
-    F = ca.Function(
-        "F",
-        [states, controls],
-        [intg(x0=states, u=controls)["xf"], ["x", "u"], ["x_next"]],
-    )
+    # discretize system
     # function
-    f = ca.Function(
-        "f", [states, controls], [rhs], ["input_state", "control_input"], ["rhs"]
+    F = ca.Function(
+        "F", [states, controls], [rhs], ["input_state", "control_input"], ["rhs"]
     )
 
     # for MPC
-    U = ca.MX.sym("U", n_controls, N)
-
-    X = ca.MX.sym("X", n_states, N + 1)
-
-    P = ca.MX.sym("P", n_states + n_states)
-
     # define
     Q = np.array([[1.0, 0.0, 0.0], [0.0, 5.0, 0.0], [0.0, 0.0, 0.1]])
     R = np.array([[0.5, 0.0], [0.0, 0.05]])
     # cost function
-    obj = 0  #### cost
+    obj = 0  # cost
     g = []  # equal constrains
+    lbg = []  # lower bound of constraints
+    ubg = []  # upper bound of constraints
     equality_list = []
-    g.append(X[:, 0] - P[:3])
-    equality_list += [True] * 3
-
-    for i in range(N):
-        obj = (
-            obj
-            + ca.mtimes([(X[:, i] - P[3:]).T, Q, X[:, i] - P[3:]])
-            + ca.mtimes([U[:, i].T, R, U[:, i]])
-        )
-        # x_next_ = f(X[:, i], U[:, i]) * T + X[:, i]
-        # g.append(X[:, i + 1] - x_next_)
-        g.append(X[:, i + 1] - F(X[:, i], U[:, i]))
-        equality_list += [True] * n_states
-
-    opt_variables = ca.vertcat(ca.reshape(U, -1, 1), ca.reshape(X, -1, 1))
-
-    nlp_prob = {"f": obj, "x": opt_variables, "p": P, "g": ca.vertcat(*g)}
-    opts_setting = {}
-    opts_setting["expand"] = True
-    opts_setting["fatrop"] = {"mu_init": 0.1}
-    opts_setting["structure_detection"] = "auto"
-    opts_setting["debug"] = True
-    opts_setting["equality"] = equality_list
-
-    solver = ca.nlpsol("solver", "fatrop", nlp_prob, opts_setting)
-
-    lbg = 0.0
-    ubg = 0.0
+    X = []  # list of all states
+    U = []  # list of all controls
+    sym_symbol_list = []
     lbx = []
     ubx = []
-    for _ in range(N):
-        lbx.append(-v_max)
-        lbx.append(-omega_max)
-        ubx.append(v_max)
-        ubx.append(omega_max)
-    for _ in range(
-        N + 1
-    ):  # note that this is different with the method using structure
+    parameter_list = []
+
+    # initial constraints
+    Xinit = ca.MX.sym("X0", n_states)
+    parameter_list.append(Xinit)
+    X_expected = ca.MX.sym("X_exp", n_states)
+    parameter_list.append(X_expected)
+
+    # state definitions according to Fatrop's rule
+    for i in range(N + 1):
+        sym = ca.MX.sym("x", n_states)
+        sym_symbol_list.append(sym)
+        X.append(sym)
         lbx.append(-2.0)
         lbx.append(-2.0)
         lbx.append(-np.inf)
         ubx.append(2.0)
         ubx.append(2.0)
         ubx.append(np.inf)
+        if i < N:
+            sym = ca.MX.sym("u", n_controls)
+            sym_symbol_list.append(sym)
+            U.append(sym)
+            lbx.append(-v_max)
+            ubx.append(v_max)
+            lbx.append(-omega_max)
+            ubx.append(omega_max)
+    # system dynamics constraints
+    for i in range(N):
+        g.append(X[i + 1] - X[i] - F(X[i], U[i]) * T)
+        lbg.append(ca.DM.zeros(n_states, 1))
+        ubg.append(ca.DM.zeros(n_states, 1))
+        equality_list += [True] * n_states
+        if i == 0:
+            g.append(X[0] - Xinit)
+            equality_list += [True] * n_states
+
+    # X_expected = ca.vertcat(1.5, 1.5, 0.0)
+
+    for i in range(N):
+        obj = (
+            obj
+            + ca.mtimes([(X[i] - X_expected).T, Q, X[i] - X_expected])
+            + ca.mtimes([U[i].T, R, U[i]])
+        )
+
+    # Solve the problem
+    nlp = {}
+    nlp["f"] = obj
+    nlp["g"] = ca.vcat(g)
+    nlp["x"] = ca.vcat(sym_symbol_list)
+    nlp["p"] = ca.vcat(parameter_list)
+
+    options = {}
+    options["expand"] = True
+    options["fatrop"] = {"mu_init": 0.1}
+    options["structure_detection"] = "auto"
+    options["debug"] = False
+    options["equality"] = equality_list
+
+    solver = ca.nlpsol("solver", "fatrop", nlp, options)
 
     # Simulation
     t0 = 0.0
@@ -146,29 +156,27 @@ if __name__ == "__main__":
     while np.linalg.norm(x0 - xs) > 1e-2 and mpciter - sim_time / T < 0.0:
         # set parameter
         c_p = np.concatenate((x0, xs))
-        init_control = np.concatenate(
-            (u0.T.reshape(-1, 1), next_states.T.reshape(-1, 1))
-        )
+        init_guess = np.concatenate((u0.T.reshape(-1, 1), next_states.T.reshape(-1, 1)))
         t_ = time.time()
-        res = solver(x0=init_control, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+        res = solver(x0=init_guess, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         index_t.append(time.time() - t_)
-        estimated_opt = res[
-            "x"
-        ].full()  # the feedback is in the series [u0, x0, u1, x1, ...]
-        u0 = estimated_opt[:200].reshape(N, n_controls).T  # (n_controls, N)
-        x_m = estimated_opt[200:].reshape(N + 1, n_states).T  # [n_states, N]
-        x_c.append(x_m.T)
-        u_c.append(u0[:, 0])
-        t_c.append(t0)
-        t0, x0, u0, next_states = shift_movement(T, t0, x0, u0, x_m, f)
-        x0 = ca.reshape(x0, -1, 1)
-        x0 = x0.full()
-        xx.append(x0)
+        #     estimated_opt = res[
+        #         "x"
+        #     ].full()  # the feedback is in the series [u0, x0, u1, x1, ...]
+        #     u0 = estimated_opt[:200].reshape(N, n_controls).T  # (n_controls, N)
+        #     x_m = estimated_opt[200:].reshape(N + 1, n_states).T  # [n_states, N]
+        #     x_c.append(x_m.T)
+        #     u_c.append(u0[:, 0])
+        #     t_c.append(t0)
+        #     t0, x0, u0, next_states = shift_movement(T, t0, x0, u0, x_m, f)
+        #     x0 = ca.reshape(x0, -1, 1)
+        #     x0 = x0.full()
+        #     xx.append(x0)
         mpciter = mpciter + 1
-    t_v = np.array(index_t)
-    print(t_v.mean())
-    print((time.time() - start_time) / (mpciter))
+    # t_v = np.array(index_t)
+    # print(t_v.mean())
+    # print((time.time() - start_time) / (mpciter))
 
-    draw_result = Draw_MPC_point_stabilization_v1(
-        rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx
-    )
+    # draw_result = Draw_MPC_point_stabilization_v1(
+    #     rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx
+    # )
