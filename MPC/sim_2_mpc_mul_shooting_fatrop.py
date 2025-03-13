@@ -21,10 +21,15 @@ def shift_movement(T, t0, x0, u, x_f, f):
 
 def init_guess_array(init_x: np.array, init_u: np.array, N: int):
     x_guess = []
-    for i in range(N + 1):
-        x_guess.append(ca.vcat(init_x[i]))
-        if i < N:
-            x_guess.append(ca.vcat(init_u[i]))
+    print(init_x.shape)
+    print(init_u.shape)
+    if init_x.shape[1] != 1:
+        for i in range(N + 1):
+            x_guess.append(ca.vcat(init_x[i]))
+            if i < N:
+                x_guess.append(ca.vcat(init_u[i]))
+    else:
+        print("the size is wrong {}".format(init_x.shape))
     return x_guess
 
 
@@ -136,12 +141,13 @@ if __name__ == "__main__":
 
     # Simulation
     t0 = 0.0
-    x0 = np.array([0.0, 0.0, 0.0]).reshape(-1, 1)  # initial state
-    x0_ = x0.copy()
-    x_m = np.zeros((n_states, N + 1))
+    x0 = np.array([0.0, 0.0, 0.0])  # initial state
+    x_begin = x0.copy()
+    # x_m = np.zeros((n_states, N + 1))
+    x_m = np.zeros((N + 1, n_states))
     next_states = x_m.copy()
-    xs = np.array([1.5, 1.5, 0.0]).reshape(-1, 1)  # final state
-    u0 = np.array([1, 2] * N).reshape(-1, 2).T  # np.ones((N, 2)) # controls
+    xs = np.array([1.5, 1.5, 0.0])  # final state
+    u0 = np.array([1, 2] * N).reshape(-1, 2)  # np.ones((N, 2)) # controls
     x_c = []  # contains for the history of the state
     u_c = []
     t_c = [t0]  # for the time
@@ -155,8 +161,10 @@ if __name__ == "__main__":
     # initial test
     while np.linalg.norm(x0 - xs) > 1e-2 and mpciter - sim_time / T < 0.0:
         # set parameter
-        c_p = np.concatenate((x0, xs))
-        init_guess = np.concatenate((u0.T.reshape(-1, 1), next_states.T.reshape(-1, 1)))
+        c_p = []
+        c_p.append(ca.vcat(x0))
+        c_p.append(ca.vcat(xs))
+        init_guess = init_guess_array(next_states, u0, N)
         t_ = time.time()
         res = solver(x0=init_guess, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
         index_t.append(time.time() - t_)
