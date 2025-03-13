@@ -112,6 +112,8 @@ if __name__ == "__main__":
         equality_list += [True] * n_states
         if i == 0:
             g.append(X[0] - Xinit)
+            lbg.append(ca.DM.zeros(n_states, 1))
+            ubg.append(ca.DM.zeros(n_states, 1))
             equality_list += [True] * n_states
 
     # X_expected = ca.vertcat(1.5, 1.5, 0.0)
