@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import casadi as ca
-import casadi.tools as ca_tools
 
 import numpy as np
 import time
@@ -10,19 +9,17 @@ from draw import Draw_MPC_point_stabilization_v1
 
 
 def shift_movement(T, t0, x0, u, x_f, f):
-    f_value = f(x0, u[:, 0])
-    st = x0 + T * f_value.full()
+    f_value = f(x0, u[0])
+    st = x0 + T * f_value.full().squeeze()
     t = t0 + T
-    u_end = np.concatenate((u[:, 1:], u[:, -1:]), axis=1)
-    x_f = np.concatenate((x_f[:, 1:], x_f[:, -1:]), axis=1)
+    u_end = np.concatenate((u[1:], u[-1:]), axis=0)
+    x_f = np.concatenate((x_f[1:], x_f[-1:]), axis=0)
 
     return t, st, u_end, x_f
 
 
 def init_guess_array(init_x: np.array, init_u: np.array, N: int):
     x_guess = []
-    print(init_x.shape)
-    print(init_u.shape)
     if init_x.shape[1] != 1:
         for i in range(N + 1):
             x_guess.append(ca.vcat(init_x[i]))
@@ -31,6 +28,18 @@ def init_guess_array(init_x: np.array, init_u: np.array, N: int):
     else:
         print("the size is wrong {}".format(init_x.shape))
     return x_guess
+
+
+def result_output(result_array: np.array, state_size: int, control_size: int, N: int):
+    state_result = np.zeros((N + 1, state_size))
+    control_result = np.zeros((N, control_size))
+    result_ = result_array[:-state_size].reshape(-1, state_size + control_size)
+    for i in range(int(result_array.shape[0] // (state_size + control_size))):
+        state_result[i] = result_[i, :state_size]
+        control_result[i] = result_[i, state_size:]
+    state_result[-1] = result_array[-state_size:].reshape(-1, state_size)
+
+    return np.array(state_result), np.array(control_result)
 
 
 if __name__ == "__main__":
@@ -112,10 +121,11 @@ if __name__ == "__main__":
         equality_list += [True] * n_states
         if i == 0:
             g.append(X[0] - Xinit)
+            lbg.append(ca.DM.zeros(n_states, 1))
+            ubg.append(ca.DM.zeros(n_states, 1))
             equality_list += [True] * n_states
 
     # X_expected = ca.vertcat(1.5, 1.5, 0.0)
-
     for i in range(N):
         obj = (
             obj
@@ -131,7 +141,7 @@ if __name__ == "__main__":
     nlp["p"] = ca.vcat(parameter_list)
 
     options = {}
-    options["expand"] = True
+    options["expand"] = False
     options["fatrop"] = {"mu_init": 0.1}
     options["structure_detection"] = "auto"
     options["debug"] = False
@@ -166,25 +176,30 @@ if __name__ == "__main__":
         c_p.append(ca.vcat(xs))
         init_guess = init_guess_array(next_states, u0, N)
         t_ = time.time()
-        res = solver(x0=init_guess, p=c_p, lbg=lbg, lbx=lbx, ubg=ubg, ubx=ubx)
+        res = solver(
+            x0=ca.vcat(init_guess),
+            p=ca.vcat(c_p),
+            lbg=ca.vcat(lbg),
+            lbx=ca.vcat(lbx),
+            ubg=ca.vcat(ubg),
+            ubx=ca.vcat(ubx),
+        )
         index_t.append(time.time() - t_)
-        #     estimated_opt = res[
-        #         "x"
-        #     ].full()  # the feedback is in the series [u0, x0, u1, x1, ...]
-        #     u0 = estimated_opt[:200].reshape(N, n_controls).T  # (n_controls, N)
-        #     x_m = estimated_opt[200:].reshape(N + 1, n_states).T  # [n_states, N]
-        #     x_c.append(x_m.T)
-        #     u_c.append(u0[:, 0])
-        #     t_c.append(t0)
-        #     t0, x0, u0, next_states = shift_movement(T, t0, x0, u0, x_m, f)
-        #     x0 = ca.reshape(x0, -1, 1)
-        #     x0 = x0.full()
-        #     xx.append(x0)
+        estimated_opt = res["x"].full()  #
+        x_result, u_result = result_output(estimated_opt, n_states, n_controls, N)
+        u0 = u_result.copy()
+        x_c.append(x_result.T)
+        u_c.append(u_result[:, 0])
+        t_c.append(t0)
+        t0, x0, u0, next_states = shift_movement(T, t0, x0, u0, x_m, F)
+        # x0 = ca.reshape(x0, -1, 1)
+        # x0 = x0.full()
+        xx.append(x0)
         mpciter = mpciter + 1
-    # t_v = np.array(index_t)
-    # print(t_v.mean())
-    # print((time.time() - start_time) / (mpciter))
+    t_v = np.array(index_t)
+    print(t_v.mean())
+    print((time.time() - start_time) / (mpciter))
 
-    # draw_result = Draw_MPC_point_stabilization_v1(
-    #     rob_diam=0.3, init_state=x0_, target_state=xs, robot_states=xx
-    # )
+    draw_result = Draw_MPC_point_stabilization_v1(
+        rob_diam=0.3, init_state=x_begin, target_state=xs, robot_states=xx
+    )
